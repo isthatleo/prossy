@@ -65,6 +65,7 @@ async function createUser(input: {
     userId,
     accountId: userId,
     providerId: "credential",
+    issuer: "local:credential",
     password: hashed,
     createdAt: daysAgo(90),
     updatedAt: daysAgo(90),

@@ -9,7 +9,10 @@ export default defineConfig({
   dialect: "postgresql",
   dbCredentials: {
     // Migrations run over the direct/session connection, not the transaction pooler
-    url: process.env.DIRECT_URL ?? process.env.DATABASE_URL!,
+    url:
+      process.env.DIRECT_URL && process.env.DIRECT_URL.length > 0
+        ? process.env.DIRECT_URL
+        : process.env.DATABASE_URL!,
   },
   strict: true,
   verbose: true,
