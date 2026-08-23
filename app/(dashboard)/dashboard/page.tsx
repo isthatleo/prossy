@@ -17,6 +17,7 @@ import {
 import { EmptyState } from "@/components/shared/empty-state"
 import { PageHeader } from "@/components/shared/page-header"
 import { StatCard } from "@/components/shared/stat-card"
+import { StatusBadge } from "@/components/shared/status-badge"
 import {
   Avatar,
   AvatarFallback,
@@ -45,7 +46,6 @@ import { requireUser } from "@/lib/auth/guards"
 import {
   formatDateTime,
   formatRelative,
-  humanize,
 } from "@/lib/format"
 import type { UserRole } from "@/lib/rbac"
 import { cn } from "@/lib/utils"
@@ -55,26 +55,6 @@ function greeting() {
   if (hour < 12) return "Good morning"
   if (hour < 17) return "Good afternoon"
   return "Good evening"
-}
-
-const STATUS_TONES: Record<string, "default" | "primary" | "secondary" | "success" | "warning" | "destructive" | "outline"> = {
-  draft: "secondary",
-  topic_submitted: "outline",
-  proposal_submitted: "outline",
-  under_review: "warning",
-  revision_required: "destructive",
-  approved: "success",
-  in_progress: "primary",
-  final_submission: "warning",
-  completed: "success",
-  rejected: "destructive",
-}
-
-type BadgeTone = NonNullable<typeof STATUS_TONES[keyof typeof STATUS_TONES]>
-
-function StatusBadge({ status }: { status: string }) {
-  const tone = (STATUS_TONES[status] ?? "secondary") as BadgeTone
-  return <Badge variant={tone}>{humanize(status)}</Badge>
 }
 
 function HealthBadge({ score }: { score: number }) {
