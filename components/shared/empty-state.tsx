@@ -1,4 +1,5 @@
 import type { LucideIcon } from "lucide-react"
+import Link from "next/link"
 
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
@@ -41,7 +42,7 @@ export function EmptyState({
           ) : null}
         </div>
         {actionLabel && actionHref ? (
-          <Button render={<a href={actionHref} />}>{actionLabel}</Button>
+          <Button render={<Link href={actionHref} />}>{actionLabel}</Button>
         ) : null}
       </CardContent>
     </Card>

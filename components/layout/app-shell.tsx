@@ -30,6 +30,7 @@ import { signOut } from "@/lib/auth/client"
 import { getNavSections } from "@/lib/nav-config"
 import type { UserRole } from "@/lib/rbac"
 import { cn } from "@/lib/utils"
+import { ThemeToggle } from "@/components/theme-toggle"
 
 export interface ShellUser {
   id: string
@@ -196,6 +197,7 @@ export function AppShell({ user, children }: { user: ShellUser; children: React.
         <header className="glass-strong sticky top-0 z-20 flex h-13 shrink-0 items-center gap-3 border-b px-4 md:px-6">
           <span className="lg:hidden" />
           <div className="ml-auto flex items-center gap-1.5">
+            <ThemeToggle />
             <Tooltip>
               <TooltipTrigger
                 render={
