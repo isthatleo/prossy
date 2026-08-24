@@ -8,6 +8,7 @@ import {
   HeartPulse,
   LayoutDashboard,
   ListChecks,
+  MessageSquareQuote,
   Pencil,
   ScrollText,
   Target,
@@ -16,6 +17,7 @@ import {
 import { DocumentsPanel } from "@/components/proposals/documents-panel"
 import { ProposalsPanel } from "@/components/proposals/proposals-panel"
 import { MilestonesPanel } from "@/components/milestones/milestones-panel"
+import { FeedbackPanel } from "@/components/feedback/feedback-panel"
 import { ProjectActions } from "@/components/projects/project-actions"
 import { PageHeader } from "@/components/shared/page-header"
 import { StatusBadge } from "@/components/shared/status-badge"
@@ -45,6 +47,7 @@ const TABS = [
   { key: "milestones", label: "Milestones", icon: ListChecks },
   { key: "proposal", label: "Proposal", icon: ScrollText },
   { key: "documents", label: "Documents", icon: FileStack },
+  { key: "feedback", label: "Feedback", icon: MessageSquareQuote },
 ] as const
 
 export default async function ProjectDetailPage({
@@ -165,6 +168,14 @@ export default async function ProjectDetailPage({
             projectId={project.id}
             role={role}
             viewerId={session.user.id}
+            supervisorId={project.supervisor?.id ?? null}
+          />
+        ) : activeTab === "feedback" ? (
+          <FeedbackPanel
+            projectId={project.id}
+            role={role}
+            viewerId={session.user.id}
+            studentId={project.student.id}
             supervisorId={project.supervisor?.id ?? null}
           />
         ) : (

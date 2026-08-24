@@ -3,7 +3,7 @@ import { eq } from "drizzle-orm"
 
 import { auth } from "@/lib/auth/server"
 import { db } from "@/db"
-import { files, projects } from "@/db/schema"
+import { files, projects, resources } from "@/db/schema"
 import { getFileDownloadUrl } from "@/lib/storage/files"
 
 const STORAGE_KEY_PROJECT = /^projects\/([0-9a-f-]{36})\//
@@ -37,6 +37,29 @@ export async function GET(
       allowed =
         !!project &&
         (project.studentId === user.id || project.supervisorId === user.id)
+    }
+  }
+
+  if (!allowed) {
+    // Library resources grant access through their own visibility rules.
+    const resource = await db.query.resources.findFirst({
+      where: eq(resources.fileId, file.id),
+      columns: { visibility: true, projectId: true },
+    })
+    if (resource) {
+      if (resource.visibility === "everyone") {
+        allowed = true
+      } else if (resource.visibility === "private") {
+        allowed = false
+      } else if (resource.projectId) {
+        const project = await db.query.projects.findFirst({
+          where: eq(projects.id, resource.projectId),
+          columns: { studentId: true, supervisorId: true },
+        })
+        allowed =
+          !!project &&
+          (project.studentId === user.id || project.supervisorId === user.id)
+      }
     }
   }
 

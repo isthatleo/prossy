@@ -14,6 +14,11 @@ export async function requireUser() {
   if (!session) {
     redirect("/login")
   }
+  // Deactivated accounts are locked out everywhere.
+  const user = session.user as unknown as Record<string, unknown>
+  if (user.is_active === false || user.isActive === false) {
+    redirect("/login")
+  }
   return session
 }
 
