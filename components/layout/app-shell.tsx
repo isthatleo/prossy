@@ -21,6 +21,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import {
   DropdownMenu,
   DropdownMenuContent,
+  DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
@@ -231,25 +232,26 @@ function UserMenu({ user, compact = false }: { user: ShellUser; compact?: boolea
         ) : null}
       </DropdownMenuTrigger>
       <DropdownMenuContent align={compact ? "end" : "start"} side={compact ? "bottom" : "top"} className="w-56">
-        <DropdownMenuLabel className="flex items-center gap-2.5 normal-case">
-          <Avatar className="size-8">
-            {user.image ? <AvatarImage src={user.image} alt="" /> : null}
-            <AvatarFallback className="bg-primary/15 text-xs font-semibold text-primary">
-              {initials(user.name)}
-            </AvatarFallback>
-          </Avatar>
-          <span className="min-w-0">
-            <span className="block truncate text-sm font-medium">{user.name}</span>
-            <span className="block truncate text-xs text-muted-foreground">{user.email}</span>
-          </span>
-        </DropdownMenuLabel>
-        <DropdownMenuSeparator />
-        <DropdownMenuItem render={<Link href="/profile" />}>
-          <CircleUserRound className="size-4" /> Profile
-        </DropdownMenuItem>
-        <DropdownMenuItem render={<Link href="/settings" />}>
-          <Settings className="size-4" /> Settings
-        </DropdownMenuItem>
+        <DropdownMenuGroup>
+          <DropdownMenuLabel className="flex items-center gap-2.5 normal-case">
+            <Avatar className="size-8">
+              {user.image ? <AvatarImage src={user.image} alt="" /> : null}
+              <AvatarFallback className="bg-primary/15 text-xs font-semibold text-primary">
+                {initials(user.name)}
+              </AvatarFallback>
+            </Avatar>
+            <span className="min-w-0">
+              <span className="block truncate text-sm font-medium">{user.name}</span>
+              <span className="block truncate text-xs text-muted-foreground">{user.email}</span>
+            </span>
+          </DropdownMenuLabel>
+          <DropdownMenuItem render={<Link href="/profile" />}>
+            <CircleUserRound className="size-4" /> Profile
+          </DropdownMenuItem>
+          <DropdownMenuItem render={<Link href="/settings" />}>
+            <Settings className="size-4" /> Settings
+          </DropdownMenuItem>
+        </DropdownMenuGroup>
         <DropdownMenuSeparator />
         <DropdownMenuItem disabled={pending} onClick={onSignOut} variant="destructive">
           <LogOut className="size-4" /> Sign out
