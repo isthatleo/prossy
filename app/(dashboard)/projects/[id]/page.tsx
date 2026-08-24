@@ -173,7 +173,6 @@ export default async function ProjectDetailPage({
         ) : activeTab === "feedback" ? (
           <FeedbackPanel
             projectId={project.id}
-            role={role}
             viewerId={session.user.id}
             studentId={project.student.id}
             supervisorId={project.supervisor?.id ?? null}

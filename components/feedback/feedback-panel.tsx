@@ -14,18 +14,15 @@ import {
 import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
 import { formatRelative } from "@/lib/format"
-import type { UserRole } from "@/lib/rbac"
 import { listProjectFeedback } from "@/services/feedback"
 
 export async function FeedbackPanel({
   projectId,
-  role,
   viewerId,
   studentId,
   supervisorId,
 }: {
   projectId: string
-  role: UserRole
   viewerId: string
   studentId: string
   supervisorId: string | null

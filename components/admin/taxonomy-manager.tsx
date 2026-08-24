@@ -50,18 +50,23 @@ export function TaxonomyManager({
   async function onCreate(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
     const formData = new FormData(event.currentTarget)
-    const result =
-      kind === "category"
-        ? await createCategoryAction(formData)
-        : await createDepartmentAction(formData)
-    if (!result.ok) {
-      toast.error(result.error)
-      return
+    setCreating(true)
+    try {
+      const result =
+        kind === "category"
+          ? await createCategoryAction(formData)
+          : await createDepartmentAction(formData)
+      if (!result.ok) {
+        toast.error(result.error)
+        return
+      }
+      toast.success(`${noun} created.`)
+      setOpen(false)
+      formRef.current?.reset()
+      startTransition(() => router.refresh())
+    } finally {
+      setCreating(false)
     }
-    toast.success(`${noun} created.`)
-    setOpen(false)
-    formRef.current?.reset()
-    startTransition(() => router.refresh())
   }
 
   async function onDelete(item: TaxonomyItem) {

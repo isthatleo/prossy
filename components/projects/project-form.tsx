@@ -39,6 +39,9 @@ export function ProjectForm({
 }) {
   const router = useRouter()
   const [saving, setSaving] = useState(false)
+  const [selectedCategoryId, setSelectedCategoryId] = useState(
+    defaultValues?.categoryId ?? ""
+  )
 
   const form = useForm<CreateProjectInput>({
     resolver: zodResolver(createProjectSchema),
@@ -102,8 +105,12 @@ export function ProjectForm({
       <div className="flex flex-col gap-2">
         <label className="text-sm font-medium">Category</label>
         <Select
-          value={form.watch("categoryId") ?? ""}
-          onValueChange={(value) => form.setValue("categoryId", value ?? "")}
+          value={selectedCategoryId ?? ""}
+          onValueChange={(value) => {
+            setSelectedCategoryId(value ?? "")
+            form.setValue("categoryId", value ?? "")
+            void form.trigger("categoryId")
+          }}
         >
           <SelectTrigger className="w-full">
             <SelectValue placeholder="Choose a category" />
