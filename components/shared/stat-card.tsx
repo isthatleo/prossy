@@ -1,4 +1,5 @@
 import type { LucideIcon } from "lucide-react"
+import Link from "next/link"
 
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent } from "@/components/ui/card"
@@ -10,6 +11,7 @@ interface StatCardProps {
   value: string | number
   hint?: string
   tone?: "default" | "primary" | "success" | "warning" | "destructive"
+  href?: string
 }
 
 const TONES: Record<NonNullable<StatCardProps["tone"]>, string> = {
@@ -26,30 +28,43 @@ export function StatCard({
   value,
   hint,
   tone = "primary",
+  href,
 }: StatCardProps) {
-  return (
-    <Card className="glass tile-hover shadow-none">
-      <CardContent className="flex items-center gap-4 p-5">
-        <div
-          className={cn(
-            "flex size-10 shrink-0 items-center justify-center rounded-xl",
-            TONES[tone]
-          )}
-        >
-          <Icon className="size-5" />
-        </div>
-        <div className="min-w-0">
-          <p className="truncate text-xs font-medium text-muted-foreground">{label}</p>
-          <p className="text-2xl font-semibold leading-tight tracking-tight tabular-nums">
-            {value}
-          </p>
-          {hint ? (
-            <Badge variant="secondary" className="mt-1 px-1.5 py-0 text-[0.625rem] font-normal">
-              {hint}
-            </Badge>
-          ) : null}
-        </div>
-      </CardContent>
-    </Card>
+  const body = (
+    <CardContent className="flex items-center gap-4 p-5">
+      <div
+        className={cn(
+          "flex size-10 shrink-0 items-center justify-center rounded-xl",
+          TONES[tone]
+        )}
+      >
+        <Icon className="size-5" />
+      </div>
+      <div className="min-w-0">
+        <p className="truncate text-xs font-medium text-muted-foreground">{label}</p>
+        <p className="text-2xl font-semibold leading-tight tracking-tight tabular-nums">
+          {value}
+        </p>
+        {hint ? (
+          <Badge variant="secondary" className="mt-1 px-1.5 py-0 text-[0.625rem] font-normal">
+            {hint}
+          </Badge>
+        ) : null}
+      </div>
+    </CardContent>
   )
+
+  if (href) {
+    return (
+      <Link
+        href={href}
+        aria-label={typeof value === "string" ? `${label}: ${value}` : label}
+        className="block rounded-xl focus-visible:ring-2 focus-visible:ring-ring/40 focus-visible:outline-none"
+      >
+        <Card className="glass tile-hover shadow-none">{body}</Card>
+      </Link>
+    )
+  }
+
+  return <Card className="glass tile-hover shadow-none">{body}</Card>
 }

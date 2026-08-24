@@ -30,5 +30,5 @@ export async function signOutAction(): Promise<void> {
       .signOut({ headers: await headers() })
       .catch(() => undefined)
   }
-  redirect("/login")
+  redirect("/")
 }

@@ -1,5 +1,6 @@
 import {
   AlertTriangle,
+  ArrowUpRight,
   BarChart3,
   Building2,
   CalendarDays,
@@ -7,12 +8,16 @@ import {
   Circle,
   CircleDotDashed,
   ClipboardCheck,
+  FileText,
   FolderKanban,
   GraduationCap,
   HeartPulse,
+  MessagesSquare,
   Tags,
+  TrendingUp,
   Users,
 } from "lucide-react"
+import Link from "next/link"
 
 import { EmptyState } from "@/components/shared/empty-state"
 import { PageHeader } from "@/components/shared/page-header"
@@ -23,6 +28,7 @@ import {
   AvatarFallback,
 } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
 import {
   Card,
   CardContent,
@@ -38,6 +44,7 @@ import {
   getStudentDashboard,
   getSupervisorDashboard,
   type ActivityItem,
+  type LatestSubmissionInfo,
   type MilestoneInfo,
   type PendingReviewItem,
   type UpcomingMeetingInfo,
@@ -71,16 +78,29 @@ function HealthBadge({ score }: { score: number }) {
 function MeetingsCard({
   meetings,
   title = "Upcoming meetings",
+  viewAllHref,
 }: {
   meetings: UpcomingMeetingInfo[]
   title?: string
+  viewAllHref?: string
 }) {
   return (
     <Card className="glass shadow-none">
       <CardHeader className="pb-3">
-        <CardTitle className="flex items-center gap-2 text-sm">
-          <CalendarDays className="size-4 text-primary" />
-          {title}
+        <CardTitle className="flex items-center justify-between gap-2 text-sm">
+          <span className="flex items-center gap-2">
+            <CalendarDays className="size-4 text-primary" />
+            {title}
+          </span>
+          {viewAllHref ? (
+            <Link
+              href={viewAllHref}
+              className="inline-flex items-center gap-0.5 text-xs font-normal text-muted-foreground transition-colors hover:text-foreground"
+            >
+              View all
+              <ArrowUpRight className="size-3" />
+            </Link>
+          ) : null}
         </CardTitle>
       </CardHeader>
       <CardContent className="pt-0">
@@ -108,6 +128,70 @@ function MeetingsCard({
               </li>
             ))}
           </ul>
+        )}
+      </CardContent>
+    </Card>
+  )
+}
+
+function LatestSubmissionCard({
+  submission,
+  projectId,
+}: {
+  submission: LatestSubmissionInfo | null
+  projectId: string | null
+}) {
+  const href = projectId
+    ? `/projects/${projectId}?tab=${submission?.kind === "document" ? "documents" : "proposal"}`
+    : "/projects"
+  const Icon = submission?.kind === "proposal" ? FileText : ClipboardCheck
+
+  return (
+    <Card className="glass shadow-none">
+      <CardHeader className="pb-2">
+        <CardTitle className="flex items-center gap-2 text-sm">
+          <ClipboardCheck className="size-4 text-primary" />
+          Latest submission
+        </CardTitle>
+        <CardDescription>Most recent item sent for review.</CardDescription>
+      </CardHeader>
+      <CardContent className="pt-0">
+        {submission ? (
+          <Link
+            href={href}
+            className="group block rounded-lg border bg-muted/30 p-3 transition-colors hover:border-primary/40 hover:bg-primary/5"
+          >
+            <div className="flex items-start justify-between gap-2">
+              <div className="flex min-w-0 items-center gap-2.5">
+                <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                  <Icon className="size-4" />
+                </div>
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-medium">{submission.label}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {submission.kind === "proposal" ? "Proposal" : "Document"} · v
+                    {submission.version} · {formatRelative(submission.submittedAt)}
+                  </p>
+                </div>
+              </div>
+              <ArrowUpRight className="mt-1 size-3.5 shrink-0 text-muted-foreground transition-colors group-hover:text-primary" />
+            </div>
+            <div className="mt-2.5">
+              <StatusBadge status={submission.status} />
+            </div>
+          </Link>
+        ) : (
+          <div className="rounded-lg border border-dashed p-4 text-center">
+            <p className="text-sm font-medium">Nothing submitted yet</p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              {projectId
+                ? "Submit your proposal from the project page to get reviewed."
+                : "Create a project first, then submit your proposal."}
+            </p>
+            <Button render={<Link href={href} />} size="sm" variant="outline" className="mt-3">
+              {projectId ? "Go to project" : "Create project"}
+            </Button>
+          </div>
         )}
       </CardContent>
     </Card>
@@ -162,11 +246,58 @@ async function StudentDashboard({ userId, name }: { userId: string; name: string
         description="Your project at a glance."
       />
 
-      <div className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <StatCard icon={CircleDotDashed} label="Milestones done" value={`${doneMilestones}/${data.milestones.length}`} tone="primary" />
-        <StatCard icon={ClipboardCheck} label="Open feedback" value={data.unresolvedFeedback} tone={data.unresolvedFeedback > 0 ? "warning" : "default"} />
-        <StatCard icon={CalendarDays} label="Upcoming meetings" value={data.upcomingMeetings.length} tone="primary" />
-        <StatCard icon={Tags} label="Notifications" value={data.unreadNotifications} tone={data.unreadNotifications > 0 ? "primary" : "default"} />
+      <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+        <StatCard
+          icon={TrendingUp}
+          label="Project progress"
+          value={`${data.project?.progressPercent ?? 0}%`}
+          hint={data.project ? "Active project" : "No project"}
+          tone={data.project ? "primary" : "default"}
+          href={data.project ? `/projects/${data.project.id}` : "/projects"}
+        />
+        <StatCard
+          icon={CircleDotDashed}
+          label="Milestones done"
+          value={`${doneMilestones}/${data.milestones.length}`}
+          tone="default"
+          href={
+            data.project
+              ? `/projects/${data.project.id}?tab=milestones`
+              : "/projects"
+          }
+        />
+        <StatCard
+          icon={ClipboardCheck}
+          label="Open feedback"
+          value={data.unresolvedFeedback}
+          tone={data.unresolvedFeedback > 0 ? "warning" : "success"}
+          href={
+            data.project
+              ? `/projects/${data.project.id}?tab=feedback`
+              : "/projects"
+          }
+        />
+        <StatCard
+          icon={MessagesSquare}
+          label="Unread messages"
+          value={data.unreadMessages}
+          tone={data.unreadMessages > 0 ? "primary" : "default"}
+          href="/messages"
+        />
+        <StatCard
+          icon={CalendarDays}
+          label="Upcoming meetings"
+          value={data.upcomingMeetings.length}
+          tone="default"
+          href="/meetings"
+        />
+        <StatCard
+          icon={Tags}
+          label="Notifications"
+          value={data.unreadNotifications}
+          tone={data.unreadNotifications > 0 ? "primary" : "default"}
+          href="/notifications"
+        />
       </div>
 
       {data.project ? (
@@ -179,7 +310,16 @@ async function StudentDashboard({ userId, name }: { userId: string; name: string
                   <CardDescription>Active project</CardDescription>
                   <CardTitle className="mt-0.5 leading-snug">{data.project.title}</CardTitle>
                 </div>
-                <StatusBadge status={data.project.status} />
+                <div className="flex shrink-0 flex-col items-end gap-1.5">
+                  <StatusBadge status={data.project.status} />
+                  <Link
+                    href={`/projects/${data.project.id}`}
+                    className="inline-flex items-center gap-0.5 text-xs font-medium text-primary transition-colors hover:text-primary/80"
+                  >
+                    Open project
+                    <ArrowUpRight className="size-3" />
+                  </Link>
+                </div>
               </div>
             </CardHeader>
             <CardContent className="space-y-5 pt-0">
@@ -225,15 +365,11 @@ async function StudentDashboard({ userId, name }: { userId: string; name: string
 
           {/* Side column */}
           <div className="flex flex-col gap-4">
-            <MeetingsCard meetings={data.upcomingMeetings} />
-            <EmptyState
-              icon={FolderKanban}
-              title="Submit a document"
-              description="Chapters and reports are submitted from your project page."
-              actionLabel="Go to projects"
-              actionHref="/projects"
-              className="[&_>div]:py-8"
+            <LatestSubmissionCard
+              submission={data.latestSubmission}
+              projectId={data.project.id}
             />
+            <MeetingsCard meetings={data.upcomingMeetings} viewAllHref="/meetings" />
           </div>
         </div>
       ) : (
@@ -246,7 +382,8 @@ async function StudentDashboard({ userId, name }: { userId: string; name: string
             actionHref="/projects"
             className="md:col-span-2 xl:col-span-1"
           />
-          <MeetingsCard meetings={[]} title="Meetings" />
+          <LatestSubmissionCard submission={null} projectId={null} />
+          <MeetingsCard meetings={[]} title="Meetings" viewAllHref="/meetings" />
         </div>
       )}
     </>

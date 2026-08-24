@@ -1,12 +1,14 @@
-import { and, asc, avg, count, desc, eq, gte, inArray, isNull, notInArray, sql } from "drizzle-orm"
+import { and, asc, avg, count, desc, eq, gt, gte, inArray, isNull, ne, notInArray, or, sql } from "drizzle-orm"
 
 import { db } from "@/db"
 import {
   activityLogs,
+  conversationMembers,
   departments,
   documentSubmissions,
   meetingParticipants,
   meetings,
+  messages,
   notifications,
   projectCategories,
   projects,
@@ -69,6 +71,14 @@ export interface PendingReviewItem {
   submittedAt: Date
 }
 
+export interface LatestSubmissionInfo {
+  kind: "proposal" | "document"
+  label: string
+  status: string
+  version: number
+  submittedAt: Date
+}
+
 export async function getStudentDashboard(userId: string) {
   const [project] = await db.query.projects.findMany({
     where: and(
@@ -84,16 +94,60 @@ export async function getStudentDashboard(userId: string) {
     limit: 1,
   })
 
-  const [unreadNotifications, unresolvedFeedback] = await Promise.all([
-    db
-      .select({ value: count() })
-      .from(notifications)
-      .where(and(eq(notifications.userId, userId), isNull(notifications.readAt))),
-    db
-      .select({ value: count() })
-      .from(feedback)
-      .where(and(eq(feedback.recipientId, userId), eq(feedback.isResolved, false))),
-  ])
+  const [unreadNotifications, unresolvedFeedback, unreadMessagesRow, latestProposal, latestDocument] =
+    await Promise.all([
+      db
+        .select({ value: count() })
+        .from(notifications)
+        .where(and(eq(notifications.userId, userId), isNull(notifications.readAt))),
+      db
+        .select({ value: count() })
+        .from(feedback)
+        .where(and(eq(feedback.recipientId, userId), eq(feedback.isResolved, false))),
+      db
+        .select({ value: count() })
+        .from(conversationMembers)
+        .innerJoin(
+          messages,
+          eq(messages.conversationId, conversationMembers.conversationId)
+        )
+        .where(
+          and(
+            eq(conversationMembers.userId, userId),
+            ne(messages.senderId, userId),
+            or(
+              isNull(conversationMembers.lastReadAt),
+              gt(messages.createdAt, conversationMembers.lastReadAt)
+            )
+          )
+        ),
+      project
+        ? db
+            .select({
+              title: proposals.title,
+              status: proposals.status,
+              version: proposals.version,
+              submittedAt: proposals.submittedAt,
+            })
+            .from(proposals)
+            .where(eq(proposals.projectId, project.id))
+            .orderBy(desc(proposals.submittedAt))
+            .limit(1)
+        : Promise.resolve([]),
+      project
+        ? db
+            .select({
+              type: documentSubmissions.type,
+              status: documentSubmissions.status,
+              version: documentSubmissions.version,
+              submittedAt: documentSubmissions.submittedAt,
+            })
+            .from(documentSubmissions)
+            .where(eq(documentSubmissions.projectId, project.id))
+            .orderBy(desc(documentSubmissions.submittedAt))
+            .limit(1)
+        : Promise.resolve([]),
+    ])
 
   const upcomingMeetings = project
     ? await db
@@ -146,7 +200,43 @@ export async function getStudentDashboard(userId: string) {
     upcomingMeetings,
     unreadNotifications: unreadNotifications[0]?.value ?? 0,
     unresolvedFeedback: unresolvedFeedback[0]?.value ?? 0,
+    unreadMessages: unreadMessagesRow[0]?.value ?? 0,
+    latestSubmission:
+      latestProposal.length + latestDocument.length === 0
+        ? null
+        : latestProposal.length > 0 &&
+            (latestDocument.length === 0 ||
+              latestProposal[0].submittedAt >= latestDocument[0].submittedAt)
+          ? ({
+              kind: "proposal",
+              label: latestProposal[0].title,
+              status: latestProposal[0].status,
+              version: latestProposal[0].version,
+              submittedAt: latestProposal[0].submittedAt,
+            } satisfies LatestSubmissionInfo)
+          : ({
+              kind: "document",
+              label: humanizeSubmissionType(latestDocument[0].type),
+              status: latestDocument[0].status,
+              version: latestDocument[0].version,
+              submittedAt: latestDocument[0].submittedAt,
+            } satisfies LatestSubmissionInfo),
   }
+}
+
+const SUBMISSION_TYPE_LABELS: Record<string, string> = {
+  chapter_1: "Chapter 1",
+  chapter_2: "Chapter 2",
+  chapter_3: "Chapter 3",
+  chapter_4: "Chapter 4",
+  progress_report: "Progress report",
+  draft_report: "Draft report",
+  final_report: "Final report",
+  other: "Document",
+}
+
+function humanizeSubmissionType(type: string) {
+  return SUBMISSION_TYPE_LABELS[type] ?? type.replaceAll("_", " ")
 }
 
 export async function getSupervisorDashboard(userId: string) {

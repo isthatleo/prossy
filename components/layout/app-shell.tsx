@@ -196,8 +196,12 @@ function UserMenu({ user, compact = false }: { user: ShellUser; compact?: boolea
   const [pending, startTransition] = useTransition()
 
   function onSignOut() {
-    startTransition(() => {
-      void signOutAction()
+    startTransition(async () => {
+      try {
+        await signOutAction()
+      } catch {
+        // Server action redirects after sign-out; nothing to handle here.
+      }
     })
   }
 
