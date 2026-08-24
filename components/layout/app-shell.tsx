@@ -220,16 +220,14 @@ function UserMenu({ user, compact = false }: { user: ShellUser; compact?: boolea
             {initials(user.name)}
           </AvatarFallback>
         </Avatar>
-        {!compact ? (
-          <span className="min-w-0 flex-1">
-            <span className="block truncate text-sm font-medium leading-tight">
-              {user.name}
-            </span>
-            <span className="block truncate text-xs capitalize text-muted-foreground">
-              {user.role}
-            </span>
+        <span className={cn("min-w-0", compact && "hidden sm:block")}>
+          <span className="block truncate text-sm font-medium leading-tight">
+            {user.name}
           </span>
-        ) : null}
+          <span className="block truncate text-xs capitalize leading-tight text-muted-foreground">
+            {user.role}
+          </span>
+        </span>
       </DropdownMenuTrigger>
       <DropdownMenuContent align={compact ? "end" : "start"} side={compact ? "bottom" : "top"} className="w-56">
         <DropdownMenuGroup>
