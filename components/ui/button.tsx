@@ -42,12 +42,23 @@ function Button({
   className,
   variant = "default",
   size = "default",
+  render,
   ...props
 }: ButtonPrimitive.Props & VariantProps<typeof buttonVariants>) {
+  // When rendering something other than a native <button> (e.g. a Next.js
+  // <Link>), Base UI requires nativeButton={false} to keep semantics valid.
+  const renderedElement =
+    render && typeof render === "object"
+      ? ((render as React.ReactElement<{ children?: React.ReactNode }>).type)
+      : null
+  const nativeButton = renderedElement ? renderedElement === "button" : undefined
+
   return (
     <ButtonPrimitive
       data-slot="button"
+      nativeButton={nativeButton}
       className={cn(buttonVariants({ variant, size, className }))}
+      render={render}
       {...props}
     />
   )
