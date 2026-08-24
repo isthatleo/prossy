@@ -7,6 +7,7 @@ import {
   GraduationCap,
   HeartPulse,
   LayoutDashboard,
+  ListChecks,
   Pencil,
   ScrollText,
   Target,
@@ -14,6 +15,7 @@ import {
 
 import { DocumentsPanel } from "@/components/proposals/documents-panel"
 import { ProposalsPanel } from "@/components/proposals/proposals-panel"
+import { MilestonesPanel } from "@/components/milestones/milestones-panel"
 import { ProjectActions } from "@/components/projects/project-actions"
 import { PageHeader } from "@/components/shared/page-header"
 import { StatusBadge } from "@/components/shared/status-badge"
@@ -40,6 +42,7 @@ import {
 
 const TABS = [
   { key: "overview", label: "Overview", icon: LayoutDashboard },
+  { key: "milestones", label: "Milestones", icon: ListChecks },
   { key: "proposal", label: "Proposal", icon: ScrollText },
   { key: "documents", label: "Documents", icon: FileStack },
 ] as const
@@ -156,6 +159,13 @@ export default async function ProjectDetailPage({
             viewerId={session.user.id}
             role={role}
             projectStatus={project.status}
+          />
+        ) : activeTab === "milestones" ? (
+          <MilestonesPanel
+            projectId={project.id}
+            role={role}
+            viewerId={session.user.id}
+            supervisorId={project.supervisor?.id ?? null}
           />
         ) : (
           <div className="grid gap-4 lg:grid-cols-3">

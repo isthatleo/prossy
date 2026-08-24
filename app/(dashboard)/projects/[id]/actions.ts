@@ -11,9 +11,20 @@ import {
   submitProposal,
 } from "@/services/submissions"
 import {
+  createMilestone,
+  deleteMilestone,
+  setMilestoneStatus,
+  updateMilestone,
+} from "@/services/milestones"
+import {
   createDocumentSchema,
   createProposalSchema,
 } from "@/validations/submissions"
+import {
+  createMilestoneSchema,
+  MILESTONE_STATUSES,
+  updateMilestoneSchema,
+} from "@/validations/milestones"
 
 export interface ActionResult {
   ok: boolean
@@ -119,6 +130,92 @@ export async function reviewSubmissionAction(
     await reviewSubmission(projectId, submissionId, viewer(session), decision, notes)
   } catch (error) {
     return { ok: false, error: error instanceof Error ? error.message : "Review failed." }
+  }
+  revalidateProject(projectId)
+  return { ok: true }
+}
+
+export async function createMilestoneAction(
+  projectId: string,
+  formData: FormData
+): Promise<ActionResult> {
+  const session = await requireUser()
+
+  const parsed = createMilestoneSchema.safeParse({
+    title: formData.get("title") ?? "",
+    description: formData.get("description") ?? undefined,
+    dueDate: formData.get("dueDate") ?? "",
+  })
+  if (!parsed.success) {
+    return { ok: false, error: parsed.error.issues[0]?.message ?? "Invalid input." }
+  }
+
+  try {
+    await createMilestone(projectId, viewer(session), parsed.data)
+  } catch (error) {
+    return { ok: false, error: error instanceof Error ? error.message : "Failed." }
+  }
+  revalidateProject(projectId)
+  return { ok: true }
+}
+
+export async function updateMilestoneAction(
+  projectId: string,
+  milestoneId: string,
+  formData: FormData
+): Promise<ActionResult> {
+  const session = await requireUser()
+
+  const parsed = updateMilestoneSchema.safeParse({
+    title: formData.get("title") ?? undefined,
+    description: formData.get("description") ?? undefined,
+    dueDate: formData.get("dueDate") ?? undefined,
+  })
+  if (!parsed.success) {
+    return { ok: false, error: parsed.error.issues[0]?.message ?? "Invalid input." }
+  }
+
+  try {
+    await updateMilestone(projectId, milestoneId, viewer(session), parsed.data)
+  } catch (error) {
+    return { ok: false, error: error instanceof Error ? error.message : "Failed." }
+  }
+  revalidateProject(projectId)
+  return { ok: true }
+}
+
+export async function setMilestoneStatusAction(
+  projectId: string,
+  milestoneId: string,
+  status: string
+): Promise<ActionResult> {
+  const session = await requireUser()
+  if (!(MILESTONE_STATUSES as readonly string[]).includes(status)) {
+    return { ok: false, error: "Unknown milestone status." }
+  }
+  try {
+    await setMilestoneStatus(
+      projectId,
+      milestoneId,
+      viewer(session),
+      status as (typeof MILESTONE_STATUSES)[number]
+    )
+  } catch (error) {
+    return { ok: false, error: error instanceof Error ? error.message : "Failed." }
+  }
+  revalidateProject(projectId)
+  return { ok: true }
+}
+
+export async function deleteMilestoneAction(
+  projectId: string,
+  milestoneId: string
+): Promise<ActionResult> {
+  const session = await requireUser()
+  try {
+    await deleteMilestone(projectId, milestoneId, viewer(session))
+  } catch (error) {
+    return { ok: false, error: error instanceof Error ? error.message : "Failed." }
   }
   revalidateProject(projectId)
   return { ok: true }
