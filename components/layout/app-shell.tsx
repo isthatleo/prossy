@@ -273,7 +273,8 @@ function CollapseButton({
       type="button"
       onClick={onToggle}
       aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
-      className="hidden size-7 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground lg:flex"
+      title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+      className="flex size-7 shrink-0 items-center justify-center rounded-md border border-border/70 bg-background/60 text-muted-foreground shadow-xs transition-colors hover:bg-muted hover:text-foreground"
     >
       {collapsed ? (
         <PanelLeftOpen className="size-4" />
@@ -332,7 +333,15 @@ export function AppShell({
         data-collapsed={collapsed}
         className="glass-strong fixed inset-y-0 left-0 z-30 hidden w-60 flex-col border-r transition-[width] duration-200 ease-out data-[collapsed=true]:w-[4.25rem] lg:flex"
       >
-        <BrandMark collapsed={collapsed} />
+        <div
+          className={cn(
+            "flex w-full items-center",
+            collapsed ? "flex-col gap-1.5" : "justify-between pr-3"
+          )}
+        >
+          <BrandMark collapsed={collapsed} />
+          <CollapseButton collapsed={collapsed} onToggle={toggleCollapsed} />
+        </div>
         <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden">
           <SidebarNav role={user.role} collapsed={collapsed} />
         </div>
@@ -354,7 +363,6 @@ export function AppShell({
               <Menu className="size-4" />
             </button>
           </MobileNavSheet>
-          <CollapseButton collapsed={collapsed} onToggle={toggleCollapsed} />
           <Breadcrumbs />
           <div className="ml-auto flex items-center gap-1">
             <ThemeToggle />
