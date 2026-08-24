@@ -3,12 +3,17 @@ import { notFound } from "next/navigation"
 import {
   ArrowLeft,
   CalendarDays,
+  FileStack,
   GraduationCap,
   HeartPulse,
+  LayoutDashboard,
   Pencil,
+  ScrollText,
   Target,
 } from "lucide-react"
 
+import { DocumentsPanel } from "@/components/proposals/documents-panel"
+import { ProposalsPanel } from "@/components/proposals/proposals-panel"
 import { ProjectActions } from "@/components/projects/project-actions"
 import { PageHeader } from "@/components/shared/page-header"
 import { StatusBadge } from "@/components/shared/status-badge"
@@ -26,25 +31,38 @@ import { Separator } from "@/components/ui/separator"
 import { requireUser } from "@/lib/auth/guards"
 import { formatDate, formatRelative } from "@/lib/format"
 import type { UserRole } from "@/lib/rbac"
+import { cn } from "@/lib/utils"
 import {
   allowedActions,
   getProjectActivity,
   getProjectDetail,
 } from "@/services/projects"
 
+const TABS = [
+  { key: "overview", label: "Overview", icon: LayoutDashboard },
+  { key: "proposal", label: "Proposal", icon: ScrollText },
+  { key: "documents", label: "Documents", icon: FileStack },
+] as const
+
 export default async function ProjectDetailPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>
+  searchParams: Promise<{ tab?: string }>
 }) {
-  const { id } = await params
+  const [{ id }, { tab }] = await Promise.all([params, searchParams])
+  const activeTab = TABS.some((t) => t.key === tab) ? tab! : "overview"
   const session = await requireUser()
   const role = session.user.role as UserRole
 
   const project = await getProjectDetail(id, { id: session.user.id, role })
   if (!project) notFound()
 
-  const [activity] = await Promise.all([getProjectActivity(project.id)])
+  const isStudentOwner =
+    role === "student" && project.student.id === session.user.id
+  const activity =
+    activeTab === "overview" ? await getProjectActivity(project.id) : []
   const actions = allowedActions(
     {
       status: project.status,
@@ -102,7 +120,45 @@ export default async function ProjectDetailPage({
         <ProjectActions projectId={project.id} actions={actions} />
       </div>
 
-      <div className="mt-6 grid gap-4 lg:grid-cols-3">
+      {/* Tabs */}
+      <div className="mt-6 flex items-center gap-1 rounded-lg border border-border/70 bg-muted/30 p-1 backdrop-blur-sm">
+        {TABS.map(({ key, label, icon: Icon }) => {
+          const active = key === activeTab
+          return (
+            <Link
+              key={key}
+              href={`/projects/${project.id}?tab=${key}`}
+              className={cn(
+                "inline-flex flex-1 items-center justify-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium transition-colors sm:flex-none",
+                active
+                  ? "bg-background text-foreground shadow-sm"
+                  : "text-muted-foreground hover:text-foreground"
+              )}
+            >
+              <Icon className="size-3.5" />
+              {label}
+            </Link>
+          )
+        })}
+      </div>
+
+      <div className="mt-4">
+        {activeTab === "proposal" ? (
+          <ProposalsPanel
+            projectId={project.id}
+            isStudentOwner={isStudentOwner}
+            role={role}
+            projectStatus={project.status}
+          />
+        ) : activeTab === "documents" ? (
+          <DocumentsPanel
+            projectId={project.id}
+            viewerId={session.user.id}
+            role={role}
+            projectStatus={project.status}
+          />
+        ) : (
+          <div className="grid gap-4 lg:grid-cols-3">
         {/* Main column */}
         <div className="flex flex-col gap-4 lg:col-span-2">
           {[
@@ -219,6 +275,8 @@ export default async function ProjectDetailPage({
             </CardContent>
           </Card>
         </div>
+          </div>
+        )}
       </div>
     </>
   )

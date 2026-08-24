@@ -1,6 +1,7 @@
+import { AppShell } from "@/components/layout/app-shell"
 import { requireUser } from "@/lib/auth/guards"
 import type { UserRole } from "@/lib/rbac"
-import { AppShell } from "@/components/layout/app-shell"
+import { getRecentNotifications } from "@/services/notifications"
 
 export default async function DashboardLayout({
   children,
@@ -9,6 +10,7 @@ export default async function DashboardLayout({
 }) {
   const session = await requireUser()
   const user = session.user
+  const notifications = await getRecentNotifications(user.id, 8)
 
   return (
     <AppShell
@@ -19,6 +21,7 @@ export default async function DashboardLayout({
         image: user.image ?? null,
         role: user.role as UserRole,
       }}
+      notifications={notifications}
     >
       {children}
     </AppShell>

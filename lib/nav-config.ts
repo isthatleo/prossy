@@ -5,6 +5,7 @@ import {
   BookOpen,
   Building2,
   CalendarDays,
+  CircleUserRound,
   FolderKanban,
   GraduationCap,
   LayoutDashboard,
@@ -110,6 +111,7 @@ const ADMIN_SECTIONS: NavSection[] = [
 const ACCOUNT_SECTION: NavSection = {
   label: "Account",
   items: [
+    { title: "Profile", href: "/profile", icon: CircleUserRound },
     { title: "Notifications", href: "/notifications", icon: Bell },
     { title: "Settings", href: "/settings", icon: Settings },
   ],

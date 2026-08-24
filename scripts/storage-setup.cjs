@@ -1,9 +1,25 @@
 /**
- * One-time Supabase Storage setup: creates the project-files bucket if it
- * doesn't exist. Safe to re-run.
+ * One-time Supabase Storage setup: creates the project-files bucket (private)
+ * and the avatars bucket (public). Safe to re-run.
  */
 require("dotenv").config({ path: ".env.local" })
 const { createClient } = require("@supabase/supabase-js")
+
+async function ensureBucket(supabase, name, options) {
+  const { data: buckets } = await supabase.storage.listBuckets()
+  if (buckets?.some((b) => b.name === name)) {
+    console.log(`Bucket "${name}" already exists.`)
+    return
+  }
+  const { error } = await supabase.storage.createBucket(name, options)
+  if (error) {
+    console.error(`Failed to create bucket "${name}":`, error.message)
+    process.exit(1)
+  }
+  console.log(
+    `Created ${options.public ? "public" : "private"} bucket "${name}".`
+  )
+}
 
 async function main() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL
@@ -14,23 +30,17 @@ async function main() {
   }
 
   const supabase = createClient(url, key, { auth: { persistSession: false } })
-  const bucket = process.env.SUPABASE_STORAGE_BUCKET || "project-files"
 
-  const { data: buckets } = await supabase.storage.listBuckets()
-  if (buckets?.some((b) => b.name === bucket)) {
-    console.log(`Bucket "${bucket}" already exists.`)
-    return
-  }
-
-  const { error } = await supabase.storage.createBucket(bucket, {
+  const filesBucket =
+    process.env.SUPABASE_STORAGE_BUCKET || "project-files"
+  await ensureBucket(supabase, filesBucket, {
     public: false,
     fileSizeLimit: 26214400, // 25 MB
   })
-  if (error) {
-    console.error("Failed to create bucket:", error.message)
-    process.exit(1)
-  }
-  console.log(`Created private bucket "${bucket}" (25 MB limit).`)
+  await ensureBucket(supabase, "avatars", {
+    public: true,
+    fileSizeLimit: 5242880, // 5 MB
+  })
 }
 
 main().catch((e) => {
