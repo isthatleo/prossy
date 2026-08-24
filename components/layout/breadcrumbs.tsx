@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useMemo, useState } from "react"
+import { Fragment, useEffect, useMemo, useState } from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { Home } from "lucide-react"
@@ -96,24 +96,26 @@ export function Breadcrumbs() {
               ? (dynamicLabels[crumb.href] ?? "…")
               : crumb.label
           return (
-            <BreadcrumbItem key={crumb.href}>
+            <Fragment key={crumb.href}>
               <BreadcrumbSeparator className="[&>svg]:size-3" />
-              {isLast ? (
-                <BreadcrumbPage className="max-w-56 truncate font-medium sm:max-w-72">
-                  {label}
-                </BreadcrumbPage>
-              ) : (
-                <BreadcrumbLink
-                  render={<Link href={crumb.href} />}
-                  className={cn(
-                    "max-w-40 truncate text-muted-foreground transition-colors hover:text-foreground",
-                    crumb.dynamic && "font-medium text-foreground/80"
-                  )}
-                >
-                  {label}
-                </BreadcrumbLink>
-              )}
-            </BreadcrumbItem>
+              <BreadcrumbItem>
+                {isLast ? (
+                  <BreadcrumbPage className="max-w-56 truncate font-medium sm:max-w-72">
+                    {label}
+                  </BreadcrumbPage>
+                ) : (
+                  <BreadcrumbLink
+                    render={<Link href={crumb.href} />}
+                    className={cn(
+                      "max-w-40 truncate text-muted-foreground transition-colors hover:text-foreground",
+                      crumb.dynamic && "font-medium text-foreground/80"
+                    )}
+                  >
+                    {label}
+                  </BreadcrumbLink>
+                )}
+              </BreadcrumbItem>
+            </Fragment>
           )
         })}
       </BreadcrumbList>
