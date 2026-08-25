@@ -26,8 +26,6 @@ const PROTECTED_PREFIXES = [
   "/admin",
 ]
 
-const AUTH_ROUTES = ["/login", "/register"]
-
 function hasSessionCookie(request: NextRequest): boolean {
   return SESSION_COOKIE_NAMES.some((name) => request.cookies.has(name))
 }
@@ -45,10 +43,6 @@ export function proxy(request: NextRequest) {
     const loginUrl = new URL("/login", request.url)
     loginUrl.searchParams.set("next", `${pathname}${search}`)
     return NextResponse.redirect(loginUrl)
-  }
-
-  if (authenticated && AUTH_ROUTES.includes(pathname)) {
-    return NextResponse.redirect(new URL("/dashboard", request.url))
   }
 
   return NextResponse.next()

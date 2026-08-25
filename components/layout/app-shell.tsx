@@ -13,7 +13,7 @@ import {
   SquareTerminal,
 } from "lucide-react"
 
-import { signOutAction } from "@/app/(dashboard)/notifications/actions"
+import { signOutAction } from "@/lib/auth/actions"
 import { Breadcrumbs } from "@/components/layout/breadcrumbs"
 import { NotificationBell } from "@/components/layout/notification-bell"
 import { ThemeToggle } from "@/components/theme-toggle"
