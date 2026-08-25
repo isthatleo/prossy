@@ -78,8 +78,8 @@ export default async function SettingsPage() {
         </Link>
 
         <p className="flex items-center justify-center gap-1.5 pb-2 text-xs text-muted-foreground/70">
-          <Link2 className="size-3" /> More workspace settings arrive with the
-          admin suite.
+          <Link2 className="size-3" /> Signed in on this device — sign out from
+          the account menu in the sidebar or topbar.
         </p>
       </div>
     </div>

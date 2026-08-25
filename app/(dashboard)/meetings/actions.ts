@@ -8,6 +8,7 @@ import {
   cancelMeeting,
   completeMeeting,
   scheduleMeeting,
+  updateMeetingNotes,
 } from "@/services/meetings"
 import { scheduleMeetingSchema } from "@/validations/meetings"
 
@@ -75,5 +76,27 @@ export async function meetingStatusAction(
 
   revalidatePath("/meetings")
   revalidatePath("/dashboard")
+  revalidatePath(`/meetings/${meetingId}`)
+  return { ok: true }
+}
+
+export async function updateMeetingNotesAction(
+  meetingId: string,
+  notes: string
+): Promise<ActionResult> {
+  const session = await requireUser()
+  const viewer = {
+    id: session.user.id,
+    name: session.user.name,
+    role: session.user.role as UserRole,
+  }
+
+  try {
+    await updateMeetingNotes(meetingId, viewer, notes)
+  } catch (error) {
+    return { ok: false, error: error instanceof Error ? error.message : "Failed." }
+  }
+
+  revalidatePath(`/meetings/${meetingId}`)
   return { ok: true }
 }

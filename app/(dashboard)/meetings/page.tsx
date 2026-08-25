@@ -1,4 +1,5 @@
-﻿import { CalendarDays, MapPin } from "lucide-react"
+﻿import Link from "next/link"
+import { ArrowRight, CalendarDays, MapPin } from "lucide-react"
 
 import {
   MeetingStatusButtons,
@@ -107,7 +108,16 @@ export default async function MeetingsPage() {
                       {meeting.agenda}
                     </p>
                   ) : null}
-                  <MeetingStatusButtons meetingId={meeting.id} />
+                  <div className="flex items-center justify-between gap-2">
+                    <MeetingStatusButtons meetingId={meeting.id} />
+                    <Link
+                      href={`/meetings/${meeting.id}`}
+                      className="inline-flex shrink-0 items-center gap-1 text-xs font-medium text-primary transition-colors hover:text-primary/80"
+                    >
+                      Open room
+                      <ArrowRight className="size-3" />
+                    </Link>
+                  </div>
                 </CardContent>
               </Card>
             ))
@@ -144,6 +154,14 @@ export default async function MeetingsPage() {
                       </span>{" "}
                       {meeting.notes ?? meeting.agenda}
                     </p>
+                    <div className="mt-2 text-right">
+                      <Link
+                        href={`/meetings/${meeting.id}`}
+                        className="inline-flex items-center gap-1 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
+                      >
+                        Details <ArrowRight className="size-3" />
+                      </Link>
+                    </div>
                   </CardContent>
                 ) : null}
               </Card>

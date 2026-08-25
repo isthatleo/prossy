@@ -73,6 +73,56 @@ export async function listVisibleResources(
   return rows
 }
 
+export interface ResourceDetail extends ResourceListItem {
+  projectId: string | null
+  fileCreatedAt: Date
+}
+
+/** Single resource fetch enforcing the same visibility rules as the list. */
+export async function getResourceDetail(
+  resourceId: string,
+  viewerId: string,
+  role: UserRole
+): Promise<ResourceDetail | null> {
+  const [row] = await db
+    .select({
+      id: resources.id,
+      title: resources.title,
+      description: resources.description,
+      category: resources.category,
+      visibility: resources.visibility,
+      createdAt: resources.createdAt,
+      fileId: files.id,
+      fileName: files.fileName,
+      sizeBytes: files.sizeBytes,
+      mimeType: files.mimeType,
+      uploaderName: users.name,
+      uploadedBy: resources.uploadedBy,
+      projectTitle: projects.title,
+      projectId: resources.projectId,
+      fileCreatedAt: files.createdAt,
+    })
+    .from(resources)
+    .innerJoin(files, eq(files.id, resources.fileId))
+    .innerJoin(users, eq(users.id, resources.uploadedBy))
+    .leftJoin(projects, eq(projects.id, resources.projectId))
+    .where(eq(resources.id, resourceId))
+    .limit(1)
+
+  if (!row) return null
+
+  const visible =
+    role === "admin" ||
+    row.uploadedBy === viewerId ||
+    row.visibility === "everyone" ||
+    (row.visibility === "project" &&
+      row.projectId !== null &&
+      (await isProjectMember(row.projectId, viewerId)))
+  if (!visible) return null
+
+  return row
+}
+
 /** Projects the viewer can attach a resource to (active work). */
 export async function listAttachableProjects(
   viewerId: string,

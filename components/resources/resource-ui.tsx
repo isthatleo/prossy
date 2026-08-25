@@ -217,11 +217,19 @@ export function DeleteResourceButton({
   )
 }
 
-export function DownloadResourceButton({ fileId }: { fileId: string }) {
+export function DownloadResourceButton({
+  fileId,
+  label = "Download",
+  size = "sm",
+}: {
+  fileId: string
+  label?: string
+  size?: "sm" | "default"
+}) {
   return (
-    <Button size="sm" variant="outline" className="h-7 px-2.5 text-xs" render={
+    <Button size={size} variant="outline" className="h-7 px-2.5 text-xs" render={
       <a href={`/api/files/${fileId}`}>
-        <Download data-icon="inline-start" className="size-3.5" /> Download
+        <Download data-icon="inline-start" className="size-3.5" /> {label}
       </a>
     } />
   )

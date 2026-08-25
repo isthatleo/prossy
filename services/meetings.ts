@@ -151,11 +151,91 @@ export async function scheduleMeeting(
       type: "meeting_scheduled",
       title: "Meeting scheduled",
       body: `"${input.title}" on ${startAt.toLocaleString("en-GB")} — set up by ${viewer.name ?? "a member"}.`,
-      link: "/meetings",
+      link: `/meetings/${meeting.id}`,
     })
   }
 
   return { meetingId: meeting.id }
+}
+
+export async function getMeetingDetail(meetingId: string, viewer: Viewer) {
+  const meeting = await db.query.meetings.findFirst({
+    where: eq(meetings.id, meetingId),
+    with: {
+      project: { columns: { id: true, title: true, studentId: true, supervisorId: true } },
+    },
+  })
+  if (!meeting) throw new Error("Meeting not found.")
+
+  const isMember =
+    meeting.project.studentId === viewer.id ||
+    (meeting.project.supervisorId !== null &&
+      meeting.project.supervisorId === viewer.id)
+  if (viewer.role !== "admin" && !isMember) {
+    throw new Error("You do not have access to this meeting.")
+  }
+
+  const participants = await db
+    .select({
+      id: users.id,
+      name: users.name,
+      role: users.role,
+      image: users.image,
+    })
+    .from(meetingParticipants)
+    .innerJoin(users, eq(users.id, meetingParticipants.userId))
+    .where(eq(meetingParticipants.meetingId, meetingId))
+
+  return {
+    id: meeting.id,
+    title: meeting.title,
+    agenda: meeting.agenda,
+    notes: meeting.notes,
+    location: meeting.location,
+    startAt: meeting.startAt,
+    endAt: meeting.endAt,
+    status: meeting.status,
+    createdBy: meeting.createdBy,
+    createdAt: meeting.createdAt,
+    projectId: meeting.project.id,
+    projectTitle: meeting.project.title,
+    canManage: meetingActionAllowed(
+      { createdBy: meeting.createdBy, status: meeting.status },
+      meeting.project.supervisorId,
+      viewer
+    ),
+    participants,
+  }
+}
+
+export type MeetingDetail = Awaited<ReturnType<typeof getMeetingDetail>>
+
+/** Any participant may contribute shared minutes for the session. */
+export async function updateMeetingNotes(
+  meetingId: string,
+  viewer: Viewer,
+  notes: string
+): Promise<void> {
+  const meeting = await db.query.meetings.findFirst({
+    where: eq(meetings.id, meetingId),
+    with: {
+      project: { columns: { studentId: true, supervisorId: true } },
+    },
+  })
+  if (!meeting) throw new Error("Meeting not found.")
+
+  const isMember =
+    meeting.project.studentId === viewer.id ||
+    (meeting.project.supervisorId !== null &&
+      meeting.project.supervisorId === viewer.id)
+  if (viewer.role !== "admin" && !isMember) {
+    throw new Error("Only meeting participants can edit the notes.")
+  }
+
+  await db
+    .update(meetings)
+    .set({ notes: notes.trim() || null, updatedAt: new Date() })
+    .where(eq(meetings.id, meetingId))
 }
 
 async function getMeetingForViewer(meetingId: string, viewer: Viewer) {
@@ -225,7 +305,7 @@ export async function cancelMeeting(
       type: "meeting_scheduled",
       title: "Meeting cancelled",
       body: `"${meeting.title}" was cancelled${reason?.trim() ? ` — ${reason.trim()}` : "."}`,
-      link: "/meetings",
+      link: `/meetings/${meeting.id}`,
     })
   }
 }

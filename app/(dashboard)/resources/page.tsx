@@ -1,4 +1,5 @@
 ﻿import { BookOpen } from "lucide-react"
+import Link from "next/link"
 
 import {
   DeleteResourceButton,
@@ -64,7 +65,14 @@ export default async function ResourcesPage() {
             <Card key={resource.id} className="glass flex flex-col shadow-none">
               <CardHeader className="pb-1.5">
                 <div className="flex items-start justify-between gap-2">
-                  <CardTitle className="text-sm">{resource.title}</CardTitle>
+                  <CardTitle className="text-sm">
+                    <Link
+                      href={`/resources/${resource.id}`}
+                      className="transition-colors hover:text-primary"
+                    >
+                      {resource.title}
+                    </Link>
+                  </CardTitle>
                   <Badge variant={VISIBILITY_VARIANT[resource.visibility] ?? "outline"}>
                     {humanize(resource.visibility)}
                   </Badge>
