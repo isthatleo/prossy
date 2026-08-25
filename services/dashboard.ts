@@ -66,6 +66,7 @@ export interface PendingReviewItem {
   id: string
   kind: "proposal" | "document"
   label: string
+  projectId: string
   projectTitle: string
   studentName: string
   submittedAt: Date
@@ -245,7 +246,7 @@ export async function getSupervisorDashboard(userId: string) {
     inArray(projects.status, [...ACTIVE_PROJECT_STATUSES])
   )
 
-  const [assignedStats, upcomingMeetings, atRiskProjects, unreadNotifications] =
+  const [assignedStats, upcomingMeetings, atRiskProjects, unreadNotifications, unreadMessagesRow] =
     await Promise.all([
       db
         .select({
@@ -291,6 +292,23 @@ export async function getSupervisorDashboard(userId: string) {
         .select({ value: count() })
         .from(notifications)
         .where(and(eq(notifications.userId, userId), isNull(notifications.readAt))),
+      db
+        .select({ value: count() })
+        .from(conversationMembers)
+        .innerJoin(
+          messages,
+          eq(messages.conversationId, conversationMembers.conversationId)
+        )
+        .where(
+          and(
+            eq(conversationMembers.userId, userId),
+            ne(messages.senderId, userId),
+            or(
+              isNull(conversationMembers.lastReadAt),
+              gt(messages.createdAt, conversationMembers.lastReadAt)
+            )
+          )
+        ),
     ])
 
   const proposalReviews = await db
@@ -298,6 +316,7 @@ export async function getSupervisorDashboard(userId: string) {
       id: proposals.id,
       kind: sql<"proposal">`'proposal'`,
       label: sql<string>`concat('Proposal v', ${proposals.version})`,
+      projectId: projects.id,
       projectTitle: projects.title,
       studentName: users.name,
       submittedAt: proposals.submittedAt,
@@ -317,6 +336,7 @@ export async function getSupervisorDashboard(userId: string) {
       id: documentSubmissions.id,
       kind: sql<"document">`'document'`,
       label: documentSubmissions.type,
+      projectId: projects.id,
       projectTitle: projects.title,
       studentName: users.name,
       submittedAt: documentSubmissions.submittedAt,
@@ -347,6 +367,7 @@ export async function getSupervisorDashboard(userId: string) {
     upcomingMeetings,
     atRiskProjects,
     unreadNotifications: unreadNotifications[0]?.value ?? 0,
+    unreadMessages: unreadMessagesRow[0]?.value ?? 0,
   }
 }
 

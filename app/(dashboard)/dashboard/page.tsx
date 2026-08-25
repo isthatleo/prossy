@@ -393,18 +393,22 @@ async function StudentDashboard({ userId, name }: { userId: string; name: string
 /* ----------------------------- Supervisor ----------------------------- */
 
 function PendingReviewRow({ item }: { item: PendingReviewItem }) {
+  const href = `/projects/${item.projectId}?tab=${item.kind === "proposal" ? "proposal" : "documents"}`
   return (
-    <li className="flex items-center gap-3 py-2.5 first:pt-0 last:pb-0">
-      <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
-        <ClipboardCheck className="size-4" />
-      </div>
-      <div className="min-w-0 flex-1">
-        <p className="truncate text-sm font-medium">
-          {item.label} · <span className="font-normal text-muted-foreground">{item.projectTitle}</span>
-        </p>
-        <p className="truncate text-xs text-muted-foreground">by {item.studentName}</p>
-      </div>
-      <span className="shrink-0 text-xs text-muted-foreground">{formatRelative(item.submittedAt)}</span>
+    <li className="py-2.5 first:pt-0 last:pb-0">
+      <Link href={href} className="group flex items-center gap-3">
+        <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary transition-colors group-hover:bg-primary/20">
+          <ClipboardCheck className="size-4" />
+        </div>
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-sm font-medium">
+            {item.label} · <span className="font-normal text-muted-foreground">{item.projectTitle}</span>
+          </p>
+          <p className="truncate text-xs text-muted-foreground">by {item.studentName}</p>
+        </div>
+        <ArrowUpRight className="size-3.5 shrink-0 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100" />
+        <span className="shrink-0 text-xs text-muted-foreground">{formatRelative(item.submittedAt)}</span>
+      </Link>
     </li>
   )
 }
@@ -419,20 +423,42 @@ async function SupervisorDashboard({ userId, name }: { userId: string; name: str
         description="Everything happening across your students."
       />
 
-      <div className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <StatCard icon={GraduationCap} label="Assigned students" value={data.assignedStudents} tone="primary" />
+      <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+        <StatCard
+          icon={GraduationCap}
+          label="Assigned students"
+          value={data.assignedStudents}
+          hint={`avg progress ${data.avgProgress}%`}
+          tone="primary"
+          href="/students"
+        />
         <StatCard
           icon={ClipboardCheck}
           label="Pending reviews"
           value={data.pendingReviewCount}
-          tone={data.pendingReviewCount > 0 ? "warning" : "default"}
+          tone={data.pendingReviewCount > 0 ? "warning" : "success"}
+          href="/reviews"
         />
-        <StatCard icon={CalendarDays} label="Upcoming meetings" value={data.upcomingMeetings.length} tone="primary" />
+        <StatCard
+          icon={MessagesSquare}
+          label="Unread messages"
+          value={data.unreadMessages}
+          tone={data.unreadMessages > 0 ? "primary" : "default"}
+          href="/messages"
+        />
+        <StatCard
+          icon={CalendarDays}
+          label="Upcoming meetings"
+          value={data.upcomingMeetings.length}
+          tone="default"
+          href="/meetings"
+        />
         <StatCard
           icon={AlertTriangle}
           label="At-risk projects"
           value={data.atRiskProjects.length}
           tone={data.atRiskProjects.length > 0 ? "destructive" : "success"}
+          href="/projects"
         />
       </div>
 
@@ -443,9 +469,18 @@ async function SupervisorDashboard({ userId, name }: { userId: string; name: str
               <ClipboardCheck className="size-4 text-primary" />
               Awaiting your review
             </CardTitle>
-            <Badge variant={data.pendingReviewCount > 0 ? "warning" : "secondary"}>
-              {data.pendingReviewCount}
-            </Badge>
+            <div className="flex items-center gap-2">
+              <Badge variant={data.pendingReviewCount > 0 ? "warning" : "secondary"}>
+                {data.pendingReviewCount}
+              </Badge>
+              <Link
+                href="/reviews"
+                className="inline-flex items-center gap-0.5 text-xs font-normal text-muted-foreground transition-colors hover:text-foreground"
+              >
+                Queue
+                <ArrowUpRight className="size-3" />
+              </Link>
+            </div>
           </CardHeader>
           <CardContent className="pt-0">
             {data.pendingReviews.length === 0 ? (
@@ -465,7 +500,7 @@ async function SupervisorDashboard({ userId, name }: { userId: string; name: str
         </Card>
 
         <div className="flex flex-col gap-4">
-          <MeetingsCard meetings={data.upcomingMeetings} />
+          <MeetingsCard meetings={data.upcomingMeetings} viewAllHref="/meetings" />
           <Card className="glass shadow-none">
             <CardHeader className="pb-2">
               <CardTitle className="flex items-center gap-2 text-sm">
@@ -505,20 +540,24 @@ async function SupervisorDashboard({ userId, name }: { userId: string; name: str
           <CardContent className="pt-0">
             <ul className="grid gap-2 sm:grid-cols-2">
               {data.atRiskProjects.map((project) => (
-                <li
-                  key={project.id}
-                  className="flex items-center gap-3 rounded-lg border border-destructive/20 bg-destructive/5 p-3"
-                >
-                  <Avatar className="size-7">
-                    <AvatarFallback className="bg-destructive/15 text-[0.625rem] font-semibold text-destructive">
-                      {project.studentName.split(" ").map((p) => p[0]).slice(0, 2).join("")}
-                    </AvatarFallback>
-                  </Avatar>
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-medium">{project.studentName}</p>
-                    <p className="truncate text-xs text-muted-foreground">{project.title}</p>
-                  </div>
-                  <HealthBadge score={project.healthScore} />
+                <li key={project.id}>
+                  <Link
+                    href={`/projects/${project.id}`}
+                    className="group flex items-center gap-3 rounded-lg border border-destructive/20 bg-destructive/5 p-3 transition-colors hover:border-destructive/40"
+                  >
+                    <Avatar className="size-7">
+                      <AvatarFallback className="bg-destructive/15 text-[0.625rem] font-semibold text-destructive">
+                        {project.studentName.split(" ").map((p) => p[0]).slice(0, 2).join("")}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-medium group-hover:text-primary">
+                        {project.studentName}
+                      </p>
+                      <p className="truncate text-xs text-muted-foreground">{project.title}</p>
+                    </div>
+                    <HealthBadge score={project.healthScore} />
+                  </Link>
                 </li>
               ))}
             </ul>
