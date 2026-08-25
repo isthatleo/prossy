@@ -2,19 +2,25 @@ import {
   AlertTriangle,
   ArrowUpRight,
   BarChart3,
+  Bell,
   Building2,
   CalendarDays,
   CheckCircle2,
   Circle,
   CircleDotDashed,
   ClipboardCheck,
+
   FileText,
   FolderKanban,
   GraduationCap,
   HeartPulse,
+  History,
   MessagesSquare,
+  Send,
+  Shield,
   Tags,
   TrendingUp,
+  Upload,
   Users,
 } from "lucide-react"
 import Link from "next/link"
@@ -43,12 +49,14 @@ import {
   getAdminDashboard,
   getStudentDashboard,
   getSupervisorDashboard,
+  getSupervisorActivity,
   type ActivityItem,
   type LatestSubmissionInfo,
   type MilestoneInfo,
   type PendingReviewItem,
   type UpcomingMeetingInfo,
 } from "@/services/dashboard"
+import { getProjectActivity } from "@/services/projects"
 import { requireUser } from "@/lib/auth/guards"
 import {
   formatDateTime,
@@ -237,7 +245,11 @@ function MilestoneRow({ milestone }: { milestone: MilestoneInfo }) {
 
 async function StudentDashboard({ userId, name }: { userId: string; name: string }) {
   const data = await getStudentDashboard(userId)
+  const activity = await getProjectActivity(data.project?.id ?? "", 6, { id: userId, role: "student" })
   const doneMilestones = data.milestones.filter((m) => m.status === "completed").length
+  const overdueMilestones = data.milestones.filter(
+    (m) => m.status !== "completed" && m.dueDate && new Date(m.dueDate) < new Date()
+  ).length
 
   return (
     <>
@@ -301,77 +313,218 @@ async function StudentDashboard({ userId, name }: { userId: string; name: string
       </div>
 
       {data.project ? (
-        <div className="mt-4 grid gap-4 lg:grid-cols-3">
-          {/* Project overview */}
-          <Card className="glass shadow-none lg:col-span-2">
-            <CardHeader className="pb-3">
-              <div className="flex items-start justify-between gap-3">
-                <div className="min-w-0">
-                  <CardDescription>Active project</CardDescription>
-                  <CardTitle className="mt-0.5 leading-snug">{data.project.title}</CardTitle>
-                </div>
-                <div className="flex shrink-0 flex-col items-end gap-1.5">
-                  <StatusBadge status={data.project.status} />
-                  <Link
-                    href={`/projects/${data.project.id}`}
-                    className="inline-flex items-center gap-0.5 text-xs font-medium text-primary transition-colors hover:text-primary/80"
-                  >
-                    Open project
-                    <ArrowUpRight className="size-3" />
-                  </Link>
-                </div>
-              </div>
-            </CardHeader>
-            <CardContent className="space-y-5 pt-0">
-              <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-sm text-muted-foreground">
-                {data.project.category ? (
-                  <span className="inline-flex items-center gap-1.5">
-                    <Tags className="size-3.5" /> {data.project.category}
-                  </span>
-                ) : null}
-                {data.project.supervisorName ? (
-                  <span className="inline-flex items-center gap-1.5">
-                    <GraduationCap className="size-3.5" /> {data.project.supervisorName}
-                  </span>
-                ) : null}
-                <HealthBadge score={data.project.healthScore} />
-              </div>
-
-              <div className="space-y-1.5">
-                <div className="flex justify-between text-xs text-muted-foreground">
-                  <span>Progress</span>
-                  <span className="tabular-nums">{data.project.progressPercent}%</span>
-                </div>
-                <Progress value={data.project.progressPercent} />
-              </div>
-
-              {data.milestones.length > 0 ? (
-                <div>
-                  <Separator className="mb-3" />
-                  <div className="mb-1 flex items-center justify-between">
-                    <p className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
-                      Milestones · {doneMilestones}/{data.milestones.length} done
-                    </p>
+        <>
+          <div className="mt-4 grid gap-4 lg:grid-cols-3">
+            {/* Project overview */}
+            <Card className="glass shadow-none lg:col-span-2">
+              <CardHeader className="pb-3">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <CardDescription>Active project</CardDescription>
+                    <CardTitle className="mt-0.5 leading-snug">{data.project.title}</CardTitle>
                   </div>
-                  <ul className="max-h-44 overflow-y-auto pr-1">
-                    {data.milestones.map((milestone) => (
-                      <MilestoneRow key={milestone.id} milestone={milestone} />
-                    ))}
-                  </ul>
+                  <div className="flex shrink-0 flex-col items-end gap-1.5">
+                    <StatusBadge status={data.project.status} />
+                    <Link
+                      href={`/projects/${data.project.id}`}
+                      className="inline-flex items-center gap-0.5 text-xs font-medium text-primary transition-colors hover:text-primary/80"
+                    >
+                      Open project
+                      <ArrowUpRight className="size-3" />
+                    </Link>
+                  </div>
                 </div>
-              ) : null}
-            </CardContent>
-          </Card>
+              </CardHeader>
+              <CardContent className="space-y-5 pt-0">
+                <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-sm text-muted-foreground">
+                  {data.project.category ? (
+                    <span className="inline-flex items-center gap-1.5">
+                      <Tags className="size-3.5" /> {data.project.category}
+                    </span>
+                  ) : null}
+                  {data.project.supervisorName ? (
+                    <span className="inline-flex items-center gap-1.5">
+                      <GraduationCap className="size-3.5" /> {data.project.supervisorName}
+                    </span>
+                  ) : null}
+                  <HealthBadge score={data.project.healthScore} />
+                </div>
 
-          {/* Side column */}
-          <div className="flex flex-col gap-4">
-            <LatestSubmissionCard
-              submission={data.latestSubmission}
-              projectId={data.project.id}
-            />
-            <MeetingsCard meetings={data.upcomingMeetings} viewAllHref="/meetings" />
+                <div className="space-y-1.5">
+                  <div className="flex justify-between text-xs text-muted-foreground">
+                    <span>Progress</span>
+                    <span className="tabular-nums">{data.project.progressPercent}%</span>
+                  </div>
+                  <Progress value={data.project.progressPercent} />
+                </div>
+
+                {data.milestones.length > 0 ? (
+                  <div>
+                    <Separator className="mb-3" />
+                    <div className="mb-1 flex items-center justify-between">
+                      <p className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
+                        Milestones · {doneMilestones}/{data.milestones.length} done
+                      </p>
+                    </div>
+                    <ul className="max-h-44 overflow-y-auto pr-1">
+                      {data.milestones.map((milestone) => (
+                        <MilestoneRow key={milestone.id} milestone={milestone} />
+                      ))}
+                    </ul>
+                  </div>
+                ) : null}
+              </CardContent>
+            </Card>
+
+            {/* Side column */}
+            <div className="flex flex-col gap-4">
+              {/* Health detail card */}
+              <Card className="glass shadow-none">
+                <CardHeader className="pb-2">
+                  <CardTitle className="flex items-center gap-2 text-sm">
+                    <HeartPulse className="size-4 text-primary" />
+                    Project health
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3 pt-0">
+                  <div className="flex items-center gap-3">
+                    <div className="relative size-14">
+                      <svg className="size-14 -rotate-90" viewBox="0 0 36 36">
+                        <path
+                          d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="3"
+                          className="text-muted/50"
+                        />
+                        <path
+                          d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="3"
+                          strokeDasharray={`${data.project.healthScore}, 100`}
+                          className={
+                            data.project.healthScore >= 75
+                              ? "text-success"
+                              : data.project.healthScore >= 50
+                                ? "text-warning"
+                                : "text-destructive"
+                          }
+                        />
+                      </svg>
+                      <span className="absolute inset-0 flex items-center justify-center text-sm font-semibold tabular-nums">
+                        {data.project.healthScore}
+                      </span>
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium">
+                        {data.project.healthScore >= 75
+                          ? "ON TRACK"
+                          : data.project.healthScore >= 50
+                            ? "NEEDS ATTENTION"
+                            : "AT RISK"}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        {doneMilestones}/{data.milestones.length} milestones
+                      </p>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2 text-xs">
+                    <div className="rounded-lg border bg-muted/30 px-2.5 py-1.5">
+                      <p className="text-muted-foreground">Pending reviews</p>
+                      <p className="font-medium tabular-nums">{data.unresolvedFeedback}</p>
+                    </div>
+                    <div className="rounded-lg border bg-muted/30 px-2.5 py-1.5">
+                      <p className="text-muted-foreground">Overdue</p>
+                      <p className={cn("font-medium tabular-nums", overdueMilestones > 0 && "text-destructive")}>
+                        {overdueMilestones}
+                      </p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <LatestSubmissionCard
+                submission={data.latestSubmission}
+                projectId={data.project.id}
+              />
+              <MeetingsCard meetings={data.upcomingMeetings} viewAllHref="/meetings" />
+            </div>
           </div>
-        </div>
+
+          {/* Bottom row: Quick actions + Activity feed */}
+          <div className="mt-4 grid gap-4 lg:grid-cols-3">
+            {/* Quick actions */}
+            <Card className="glass shadow-none">
+              <CardHeader className="pb-2">
+                <CardTitle className="flex items-center gap-2 text-sm">
+                  <Shield className="size-4 text-primary" />
+                  Quick actions
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-2 pt-0">
+                <Link
+                  href={`/projects/${data.project.id}?tab=documents`}
+                  className="flex items-center gap-3 rounded-lg border bg-muted/30 px-3 py-2.5 text-sm transition-colors hover:border-primary/40 hover:bg-primary/5"
+                >
+                  <Upload className="size-4 text-primary" />
+                  Submit document
+                </Link>
+                <Link
+                  href="/messages"
+                  className="flex items-center gap-3 rounded-lg border bg-muted/30 px-3 py-2.5 text-sm transition-colors hover:border-primary/40 hover:bg-primary/5"
+                >
+                  <MessagesSquare className="size-4 text-primary" />
+                  Message supervisor
+                </Link>
+                <Link
+                  href="/resources"
+                  className="flex items-center gap-3 rounded-lg border bg-muted/30 px-3 py-2.5 text-sm transition-colors hover:border-primary/40 hover:bg-primary/5"
+                >
+                  <FileText className="size-4 text-primary" />
+                  Upload resource
+                </Link>
+                <Link
+                  href={`/projects/${data.project.id}`}
+                  className="flex items-center gap-3 rounded-lg border bg-muted/30 px-3 py-2.5 text-sm transition-colors hover:border-primary/40 hover:bg-primary/5"
+                >
+                  <FolderKanban className="size-4 text-primary" />
+                  View project
+                </Link>
+              </CardContent>
+            </Card>
+
+            {/* Activity feed */}
+            <Card className="glass shadow-none lg:col-span-2">
+              <CardHeader className="pb-2">
+                <CardTitle className="flex items-center justify-between gap-2 text-sm">
+                  <span className="flex items-center gap-2">
+                    <History className="size-4 text-primary" />
+                    Recent activity
+                  </span>
+                  {data.project ? (
+                    <Link
+                      href={`/projects/${data.project.id}?tab=overview`}
+                      className="inline-flex items-center gap-0.5 text-xs font-normal text-muted-foreground transition-colors hover:text-foreground"
+                    >
+                      View all
+                      <ArrowUpRight className="size-3" />
+                    </Link>
+                  ) : null}
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="pt-0">
+                {activity.length === 0 ? (
+                  <p className="py-6 text-center text-sm text-muted-foreground">
+                    No activity yet — start by submitting your proposal.
+                  </p>
+                ) : (
+                  <ActivityFeed items={activity} />
+                )}
+              </CardContent>
+            </Card>
+          </div>
+        </>
       ) : (
         <div className="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
           <EmptyState
@@ -414,16 +567,24 @@ function PendingReviewRow({ item }: { item: PendingReviewItem }) {
 }
 
 async function SupervisorDashboard({ userId, name }: { userId: string; name: string }) {
-  const data = await getSupervisorDashboard(userId)
+  const [data, activity] = await Promise.all([
+    getSupervisorDashboard(userId),
+    getSupervisorActivity(userId, 8),
+  ])
 
   return (
     <>
       <PageHeader
         title={`${greeting()}, ${name.split(" ")[0]}`}
         description="Everything happening across your students."
-      />
+      >
+        <Button size="sm" render={<Link href="/meetings" />}>
+          <CalendarDays className="size-4" />
+          Schedule meeting
+        </Button>
+      </PageHeader>
 
-      <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+      <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
         <StatCard
           icon={GraduationCap}
           label="Assigned students"
@@ -445,6 +606,13 @@ async function SupervisorDashboard({ userId, name }: { userId: string; name: str
           value={data.unreadMessages}
           tone={data.unreadMessages > 0 ? "primary" : "default"}
           href="/messages"
+        />
+        <StatCard
+          icon={Bell}
+          label="Notifications"
+          value={data.unreadNotifications}
+          tone={data.unreadNotifications > 0 ? "primary" : "default"}
+          href="/notifications"
         />
         <StatCard
           icon={CalendarDays}
@@ -528,6 +696,60 @@ async function SupervisorDashboard({ userId, name }: { userId: string; name: str
         </div>
       </div>
 
+      <div className="mt-4 grid gap-4 lg:grid-cols-3">
+        <Card className="glass shadow-none">
+          <CardHeader className="pb-2">
+            <CardTitle className="flex items-center gap-2 text-sm">
+              <Send className="size-4 text-primary" />
+              Quick actions
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-2 pt-0">
+            <Button variant="outline" size="sm" className="w-full justify-start" render={<Link href="/reviews" />}>
+              <ClipboardCheck className="size-4" />
+              Review submissions
+            </Button>
+            <Button variant="outline" size="sm" className="w-full justify-start" render={<Link href="/students" />}>
+              <GraduationCap className="size-4" />
+              View students
+            </Button>
+            <Button variant="outline" size="sm" className="w-full justify-start" render={<Link href="/projects" />}>
+              <FolderKanban className="size-4" />
+              Browse projects
+            </Button>
+            <Button variant="outline" size="sm" className="w-full justify-start" render={<Link href="/messages" />}>
+              <MessagesSquare className="size-4" />
+              Send a message
+            </Button>
+          </CardContent>
+        </Card>
+
+        <Card className="glass shadow-none lg:col-span-2">
+          <CardHeader className="flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="flex items-center gap-2 text-sm">
+              <History className="size-4 text-primary" />
+              Recent activity
+            </CardTitle>
+            <Link
+              href="/projects"
+              className="inline-flex items-center gap-0.5 text-xs font-normal text-muted-foreground transition-colors hover:text-foreground"
+            >
+              All projects
+              <ArrowUpRight className="size-3" />
+            </Link>
+          </CardHeader>
+          <CardContent className="pt-0">
+            {activity.length === 0 ? (
+              <p className="py-8 text-center text-sm text-muted-foreground">
+                No activity recorded yet across your students.
+              </p>
+            ) : (
+              <ActivityFeed items={activity} />
+            )}
+          </CardContent>
+        </Card>
+      </div>
+
       {data.atRiskProjects.length > 0 ? (
         <Card className="glass mt-4 border-destructive/30 shadow-none">
           <CardHeader className="pb-2">
@@ -578,16 +800,23 @@ async function AdminDashboard({ name }: { name: string }) {
       <PageHeader
         title={`${greeting()}, ${name.split(" ")[0]}`}
         description="Institution-wide snapshot."
-      />
+      >
+        <Button size="sm" render={<Link href="/admin/departments" />}>
+          <Building2 className="size-4" />
+          Manage departments
+        </Button>
+      </PageHeader>
 
-      <div className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <StatCard icon={Users} label="Total users" value={data.totalUsers} hint={`${data.usersByRole.student ?? 0} students`} tone="primary" />
-        <StatCard icon={FolderKanban} label="Projects" value={data.totalProjects} hint={`avg health ${data.avgHealth}`} />
-        <StatCard icon={Building2} label="Departments" value={data.departments} />
-        <StatCard icon={Tags} label="Categories" value={data.categories} />
+      <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+        <StatCard icon={Users} label="Total users" value={data.totalUsers} hint={`${data.usersByRole.student ?? 0} students`} tone="primary" href="/students" />
+        <StatCard icon={FolderKanban} label="Projects" value={data.totalProjects} hint={`avg health ${data.avgHealth}`} href="/projects" />
+        <StatCard icon={ClipboardCheck} label="Pending reviews" value={data.pendingReviewCount} tone={data.pendingReviewCount > 0 ? "warning" : "success"} href="/reviews" />
+        <StatCard icon={MessagesSquare} label="Unread messages" value={data.unreadMessages} tone={data.unreadMessages > 0 ? "primary" : "default"} href="/messages" />
+        <StatCard icon={Building2} label="Departments" value={data.departments} href="/admin/departments" />
+        <StatCard icon={Tags} label="Categories" value={data.categories} href="/admin/categories" />
       </div>
 
-      <div className="mt-4 grid gap-4 lg:grid-cols-2">
+      <div className="mt-4 grid gap-4 lg:grid-cols-3">
         <Card className="glass shadow-none">
           <CardHeader className="pb-2">
             <CardTitle className="flex items-center gap-2 text-sm">
@@ -597,12 +826,18 @@ async function AdminDashboard({ name }: { name: string }) {
             <CardDescription>Registered accounts by role.</CardDescription>
           </CardHeader>
           <CardContent className="grid gap-3 pt-0 sm:grid-cols-3">
-            {(["student", "supervisor", "admin"] as const).map((role) => (
-              <div key={role} className="rounded-xl border bg-card/50 p-4 text-center">
-                <p className="text-2xl font-semibold tabular-nums">{data.usersByRole[role] ?? 0}</p>
-                <Badge variant="secondary" className="mt-1 capitalize">{role}s</Badge>
-              </div>
-            ))}
+            <Link href="/students" className="group rounded-xl border bg-card/50 p-4 text-center transition-colors hover:border-primary/40 hover:bg-primary/5">
+              <p className="text-2xl font-semibold tabular-nums group-hover:text-primary">{data.usersByRole.student ?? 0}</p>
+              <Badge variant="secondary" className="mt-1">Students</Badge>
+            </Link>
+            <Link href="/supervisors" className="group rounded-xl border bg-card/50 p-4 text-center transition-colors hover:border-primary/40 hover:bg-primary/5">
+              <p className="text-2xl font-semibold tabular-nums group-hover:text-primary">{data.usersByRole.supervisor ?? 0}</p>
+              <Badge variant="secondary" className="mt-1">Supervisors</Badge>
+            </Link>
+            <div className="rounded-xl border bg-card/50 p-4 text-center">
+              <p className="text-2xl font-semibold tabular-nums">{data.usersByRole.admin ?? 0}</p>
+              <Badge variant="secondary" className="mt-1">Admins</Badge>
+            </div>
           </CardContent>
         </Card>
 
@@ -640,11 +875,43 @@ async function AdminDashboard({ name }: { name: string }) {
             )}
           </CardContent>
         </Card>
+
+        <div className="flex flex-col gap-4">
+          <Card className="glass shadow-none">
+            <CardHeader className="pb-2">
+              <CardTitle className="flex items-center gap-2 text-sm">
+                <Send className="size-4 text-primary" />
+                Quick actions
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-2 pt-0">
+              <Button variant="outline" size="sm" className="w-full justify-start" render={<Link href="/students" />}>
+                <GraduationCap className="size-4" />
+                Manage students
+              </Button>
+              <Button variant="outline" size="sm" className="w-full justify-start" render={<Link href="/supervisors" />}>
+                <Shield className="size-4" />
+                Manage supervisors
+              </Button>
+              <Button variant="outline" size="sm" className="w-full justify-start" render={<Link href="/admin/categories" />}>
+                <Tags className="size-4" />
+                Manage categories
+              </Button>
+              <Button variant="outline" size="sm" className="w-full justify-start" render={<Link href="/reviews" />}>
+                <ClipboardCheck className="size-4" />
+                Review submissions
+              </Button>
+            </CardContent>
+          </Card>
+        </div>
       </div>
 
       <Card className="glass mt-4 shadow-none">
-        <CardHeader className="pb-2">
-          <CardTitle className="text-sm">Recent activity</CardTitle>
+        <CardHeader className="flex-row items-center justify-between space-y-0 pb-2">
+          <CardTitle className="flex items-center gap-2 text-sm">
+            <History className="size-4 text-primary" />
+            Recent activity
+          </CardTitle>
           <CardDescription>The latest events across all projects.</CardDescription>
         </CardHeader>
         <CardContent className="pt-0">

@@ -3,6 +3,7 @@ import { FolderKanban, Plus } from "lucide-react"
 
 import { EmptyState } from "@/components/shared/empty-state"
 import { PageHeader } from "@/components/shared/page-header"
+import { Pagination, paginate } from "@/components/shared/pagination"
 import { StatusBadge } from "@/components/shared/status-badge"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -31,15 +32,15 @@ const FILTERS = [
 export default async function ProjectsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ status?: string }>
+  searchParams: Promise<{ status?: string; page?: string }>
 }) {
   const session = await requireUser()
   const role = session.user.role as UserRole
-  const { status = "all" } = await searchParams
+  const { status = "all", page: pageStr } = await searchParams
+  const pageNum = Math.max(1, parseInt(pageStr ?? "1", 10) || 1)
 
   let effectiveFilter = status
   if (status === "active") {
-    // handled client-side below via list + filter
     effectiveFilter = "all"
   }
   let projects = await listProjects(
@@ -51,6 +52,10 @@ export default async function ProjectsPage({
   }
 
   const canCreate = role === "student"
+  const { items: paged, page, totalPages } = paginate(projects, pageNum, 12)
+
+  const filterParams: Record<string, string> = {}
+  if (status !== "all") filterParams.status = status
 
   return (
     <>
@@ -98,41 +103,51 @@ export default async function ProjectsPage({
           />
         </div>
       ) : (
-        <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-          {projects.map((project) => (
-            <Link key={project.id} href={`/projects/${project.id}`} className="group">
-              <Card className="glass tile-hover h-full shadow-none">
-                <CardContent className="flex h-full flex-col p-5">
-                  <div className="flex items-start justify-between gap-2">
-                    <StatusBadge status={project.status} />
-                    {project.categoryName ? (
-                      <Badge variant="outline">{project.categoryName}</Badge>
-                    ) : null}
-                  </div>
-                  <h3 className="mt-3 line-clamp-2 text-sm font-semibold leading-snug group-hover:text-primary">
-                    {project.title}
-                  </h3>
-                  <p className="mt-1.5 text-xs text-muted-foreground">
-                    {role === "student"
-                      ? (project.supervisorName ?? "Awaiting supervisor assignment")
-                      : project.studentName}
-                  </p>
-
-                  <div className="mt-auto pt-4">
-                    <div className="mb-1.5 flex justify-between text-[0.6875rem] text-muted-foreground">
-                      <span>Progress</span>
-                      <span className="tabular-nums">{project.progressPercent}%</span>
+        <>
+          <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+            {paged.map((project) => (
+              <Link key={project.id} href={`/projects/${project.id}`} className="group">
+                <Card className="glass tile-hover h-full shadow-none">
+                  <CardContent className="flex h-full flex-col p-5">
+                    <div className="flex items-start justify-between gap-2">
+                      <StatusBadge status={project.status} />
+                      {project.categoryName ? (
+                        <Badge variant="outline">{project.categoryName}</Badge>
+                      ) : null}
                     </div>
-                    <Progress value={project.progressPercent} className="h-1.5" />
-                    <p className="mt-2.5 text-[0.6875rem] text-muted-foreground/70">
-                      Updated {formatRelative(project.updatedAt)} · Health {project.healthScore}
+                    <h3 className="mt-3 line-clamp-2 text-sm font-semibold leading-snug group-hover:text-primary">
+                      {project.title}
+                    </h3>
+                    <p className="mt-1.5 text-xs text-muted-foreground">
+                      {role === "student"
+                        ? (project.supervisorName ?? "Awaiting supervisor assignment")
+                        : project.studentName}
                     </p>
-                  </div>
-                </CardContent>
-              </Card>
-            </Link>
-          ))}
-        </div>
+
+                    <div className="mt-auto pt-4">
+                      <div className="mb-1.5 flex justify-between text-[0.6875rem] text-muted-foreground">
+                        <span>Progress</span>
+                        <span className="tabular-nums">{project.progressPercent}%</span>
+                      </div>
+                      <Progress value={project.progressPercent} className="h-1.5" />
+                      <p className="mt-2.5 text-[0.6875rem] text-muted-foreground/70">
+                        Updated {formatRelative(project.updatedAt)} · Health {project.healthScore}
+                      </p>
+                    </div>
+                  </CardContent>
+                </Card>
+              </Link>
+            ))}
+          </div>
+          <div className="mt-6">
+            <Pagination
+              page={page}
+              totalPages={totalPages}
+              baseUrl="/projects"
+              params={filterParams}
+            />
+          </div>
+        </>
       )}
     </>
   )

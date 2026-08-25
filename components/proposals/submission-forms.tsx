@@ -9,9 +9,17 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
+import {
   submitDocumentAction,
   submitProposalAction,
 } from "@/app/(dashboard)/projects/[id]/actions"
+import { validateFile } from "@/lib/file-validation"
 
 export function ProposalForm({ projectId }: { projectId: string }) {
   const router = useRouter()
@@ -22,6 +30,16 @@ export function ProposalForm({ projectId }: { projectId: string }) {
   async function onSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
     const formData = new FormData(event.currentTarget)
+
+    const file = formData.get("file") as File | null
+    if (file && file.size > 0) {
+      const error = validateFile(file)
+      if (error) {
+        toast.error(error)
+        return
+      }
+    }
+
     const result = await submitProposalAction(projectId, formData)
     if (!result.ok) {
       toast.error(result.error)
@@ -107,10 +125,21 @@ export function DocumentForm({ projectId }: { projectId: string }) {
   const formRef = useRef<HTMLFormElement>(null)
   const [pending, startTransition] = useTransition()
   const [fileName, setFileName] = useState<string | null>(null)
+  const [selectedType, setSelectedType] = useState("chapter_1")
 
   async function onSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
     const formData = new FormData(event.currentTarget)
+
+    const file = formData.get("file") as File | null
+    if (file && file.size > 0) {
+      const error = validateFile(file)
+      if (error) {
+        toast.error(error)
+        return
+      }
+    }
+
     const result = await submitDocumentAction(projectId, formData)
     if (!result.ok) {
       toast.error(result.error)
@@ -126,23 +155,23 @@ export function DocumentForm({ projectId }: { projectId: string }) {
     <form ref={formRef} onSubmit={onSubmit} className="space-y-4">
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="space-y-1.5">
-          <Label htmlFor="document-type">Type *</Label>
-          <select
-            id="document-type"
-            name="type"
-            required
-            defaultValue="chapter_1"
-            className="border-input flex h-9 w-full items-center rounded-md border bg-transparent px-3 py-2 text-sm shadow-xs focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] focus-visible:outline-none"
-          >
-            <option value="chapter_1">Chapter 1</option>
-            <option value="chapter_2">Chapter 2</option>
-            <option value="chapter_3">Chapter 3</option>
-            <option value="chapter_4">Chapter 4</option>
-            <option value="progress_report">Progress report</option>
-            <option value="draft_report">Draft report</option>
-            <option value="final_report">Final report</option>
-            <option value="other">Other</option>
-          </select>
+          <Label>Type *</Label>
+          <Select value={selectedType} onValueChange={(v) => v && setSelectedType(v)}>
+            <SelectTrigger className="w-full">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="chapter_1">Chapter 1</SelectItem>
+              <SelectItem value="chapter_2">Chapter 2</SelectItem>
+              <SelectItem value="chapter_3">Chapter 3</SelectItem>
+              <SelectItem value="chapter_4">Chapter 4</SelectItem>
+              <SelectItem value="progress_report">Progress report</SelectItem>
+              <SelectItem value="draft_report">Draft report</SelectItem>
+              <SelectItem value="final_report">Final report</SelectItem>
+              <SelectItem value="other">Other</SelectItem>
+            </SelectContent>
+          </Select>
+          <input type="hidden" name="type" value={selectedType} />
         </div>
         <div className="space-y-1.5">
           <Label htmlFor="document-description">Description</Label>

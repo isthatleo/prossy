@@ -351,7 +351,23 @@ export async function getProjectDetail(
   }
 }
 
-export async function getProjectActivity(projectId: string, limit = 15) {
+export async function getProjectActivity(
+  projectId: string,
+  limit = 15,
+  viewer?: { id: string; role: UserRole }
+) {
+  if (viewer) {
+    const project = await db.query.projects.findFirst({
+      where: eq(projects.id, projectId),
+      columns: { id: true, studentId: true, supervisorId: true },
+    })
+    if (!project) return []
+    const canView =
+      viewer.role === "admin" ||
+      project.studentId === viewer.id ||
+      (project.supervisorId !== null && project.supervisorId === viewer.id)
+    if (!canView) return []
+  }
   return db
     .select({
       id: activityLogs.id,

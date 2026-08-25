@@ -2,7 +2,7 @@
 
 import { useRef, useState, useTransition } from "react"
 import { useRouter } from "next/navigation"
-import { Loader2, Plus, Trash2 } from "lucide-react"
+import { Loader2, Plus, Search, Trash2 } from "lucide-react"
 import { toast } from "sonner"
 
 import {
@@ -46,6 +46,15 @@ export function TaxonomyManager({
   const [busyId, setBusyId] = useState<string | null>(null)
   const [creating, setCreating] = useState(false)
   const [pending, startTransition] = useTransition()
+  const [query, setQuery] = useState("")
+
+  const filtered = query
+    ? items.filter(
+        (item) =>
+          item.label.toLowerCase().includes(query.toLowerCase()) ||
+          (item.sublabel ?? "").toLowerCase().includes(query.toLowerCase())
+      )
+    : items
 
   async function onCreate(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -94,65 +103,77 @@ export function TaxonomyManager({
   }
 
   return (
-    <div className="grid gap-4 md:grid-cols-2">
-      <Dialog open={open} onOpenChange={setOpen}>
-        <DialogTrigger
-          render={
-            <Button size="sm">
-              <Plus data-icon="inline-start" /> New {noun.toLowerCase()}
-            </Button>
-          }
-        />
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>New {noun.toLowerCase()}</DialogTitle>
-            <DialogDescription>
-              {kind === "category"
-                ? "Students pick a category when registering their project."
-                : "Departments group students and supervisors; the code is a short unique identifier."}
-            </DialogDescription>
-          </DialogHeader>
-          <form ref={formRef} onSubmit={onCreate} className="space-y-3">
-            <div className="space-y-1.5">
-              <Label htmlFor="tax-name">Name *</Label>
-              <Input id="tax-name" name="name" required minLength={2} maxLength={120} />
-            </div>
-            {kind === "category" ? (
-              <div className="space-y-1.5">
-                <Label htmlFor="tax-desc">Description</Label>
-                <textarea
-                  id="tax-desc"
-                  name="description"
-                  rows={3}
-                  maxLength={300}
-                  className="border-input placeholder:text-muted-foreground flex w-full rounded-md border bg-transparent px-3 py-2 text-sm shadow-xs focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] focus-visible:outline-none"
-                />
-              </div>
-            ) : (
-              <div className="space-y-1.5">
-                <Label htmlFor="tax-code">Code *</Label>
-                <Input
-                  id="tax-code"
-                  name="code"
-                  required
-                  minLength={2}
-                  maxLength={12}
-                  placeholder="e.g. CS"
-                  className="uppercase"
-                />
-              </div>
-            )}
-            <DialogFooter>
-              <Button type="submit" disabled={creating}>
-                Create
+    <div className="space-y-4">
+      <div className="flex items-center gap-3">
+        <Dialog open={open} onOpenChange={setOpen}>
+          <DialogTrigger
+            render={
+              <Button size="sm">
+                <Plus data-icon="inline-start" /> New {noun.toLowerCase()}
               </Button>
-            </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
+            }
+          />
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>New {noun.toLowerCase()}</DialogTitle>
+              <DialogDescription>
+                {kind === "category"
+                  ? "Students pick a category when registering their project."
+                  : "Departments group students and supervisors; the code is a short unique identifier."}
+              </DialogDescription>
+            </DialogHeader>
+            <form ref={formRef} onSubmit={onCreate} className="space-y-3">
+              <div className="space-y-1.5">
+                <Label htmlFor="tax-name">Name *</Label>
+                <Input id="tax-name" name="name" required minLength={2} maxLength={120} />
+              </div>
+              {kind === "category" ? (
+                <div className="space-y-1.5">
+                  <Label htmlFor="tax-desc">Description</Label>
+                  <textarea
+                    id="tax-desc"
+                    name="description"
+                    rows={3}
+                    maxLength={300}
+                    className="border-input placeholder:text-muted-foreground flex w-full rounded-md border bg-transparent px-3 py-2 text-sm shadow-xs focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] focus-visible:outline-none"
+                  />
+                </div>
+              ) : (
+                <div className="space-y-1.5">
+                  <Label htmlFor="tax-code">Code *</Label>
+                  <Input
+                    id="tax-code"
+                    name="code"
+                    required
+                    minLength={2}
+                    maxLength={12}
+                    placeholder="e.g. CS"
+                    className="uppercase"
+                  />
+                </div>
+              )}
+              <DialogFooter>
+                <Button type="submit" disabled={creating}>
+                  Create
+                </Button>
+              </DialogFooter>
+            </form>
+          </DialogContent>
+        </Dialog>
 
-      <ul className="contents">
-        {items.map((item) => (
+        <div className="relative ml-auto w-64">
+          <Search className="pointer-events-none absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            placeholder={`Search ${noun.toLowerCase()}s…`}
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            className="h-8 pl-8 text-xs"
+          />
+        </div>
+      </div>
+
+      <ul className="grid gap-2 md:grid-cols-2">
+        {filtered.map((item) => (
           <li
             key={item.id}
             className="glass flex items-start justify-between gap-3 rounded-lg border border-border px-4 py-3"
@@ -185,9 +206,9 @@ export function TaxonomyManager({
         ))}
       </ul>
 
-      {items.length === 0 ? (
-        <p className="py-10 text-center text-sm text-muted-foreground md:col-span-2">
-          No {noun.toLowerCase()}s yet — create the first one.
+      {filtered.length === 0 ? (
+        <p className="py-10 text-center text-sm text-muted-foreground">
+          {query ? "No results match your search." : `No ${noun.toLowerCase()}s yet — create the first one.`}
         </p>
       ) : null}
     </div>

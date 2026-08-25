@@ -53,8 +53,8 @@ export function NotificationBell({
   const router = useRouter()
   const [open, setOpen] = useState(false)
   const [pending, startTransition] = useTransition()
-  // Local state mirrors server data; router.refresh() syncs the layout props.
-  const [items] = useState(initialItems)
+  const [items, setItems] = useState(initialItems)
+  const [unreadCount, setUnreadCount] = useState(initialUnreadCount)
 
   async function onOpenChange(next: boolean) {
     setOpen(next)
@@ -65,7 +65,12 @@ export function NotificationBell({
     if (!item.readAt) {
       try {
         await markNotificationReadAction(item.id)
-        item.readAt = new Date()
+        setItems((prev) =>
+          prev.map((n) =>
+            n.id === item.id ? { ...n, readAt: new Date() } : n
+          )
+        )
+        setUnreadCount((c) => Math.max(0, c - 1))
       } catch {
         toast.error("Could not mark notification as read.")
         return
@@ -78,8 +83,11 @@ export function NotificationBell({
 
   async function markAll() {
     await markAllNotificationsReadAction()
+    setItems((prev) =>
+      prev.map((n) => (n.readAt ? n : { ...n, readAt: new Date() }))
+    )
+    setUnreadCount(0)
     toast.success("All notifications marked as read.")
-    startTransition(() => router.refresh())
   }
 
   return (
@@ -88,22 +96,22 @@ export function NotificationBell({
         render={
           <button
             type="button"
-            aria-label={`Notifications${initialUnreadCount > 0 ? ` (${initialUnreadCount} unread)` : ""}`}
+            aria-label={`Notifications${unreadCount > 0 ? ` (${unreadCount} unread)` : ""}`}
             className="relative flex size-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
           />
         }
       >
         <Bell className="size-4" />
-        {initialUnreadCount > 0 ? (
+        {unreadCount > 0 ? (
           <span className="absolute -top-0.5 -right-0.5 flex size-4 items-center justify-center rounded-full bg-primary text-[0.5625rem] font-bold text-primary-foreground">
-            {initialUnreadCount > 9 ? "9+" : initialUnreadCount}
+            {unreadCount > 9 ? "9+" : unreadCount}
           </span>
         ) : null}
       </PopoverTrigger>
       <PopoverContent align="end" className="w-84 p-0">
         <div className="flex items-center justify-between px-3 py-2.5">
           <p className="text-sm font-semibold">Notifications</p>
-          {initialUnreadCount > 0 ? (
+          {unreadCount > 0 ? (
             <Button
               size="sm"
               variant="ghost"

@@ -19,6 +19,7 @@ import {
   studentCanSubmitDocuments,
   submissionReviewActions,
 } from "@/services/submissions"
+import type { Viewer } from "@/services/milestones"
 
 const SUBMISSION_STATUS_VARIANT: Record<string, "secondary" | "outline" | "warning" | "success" | "destructive"> = {
   submitted: "secondary",
@@ -38,9 +39,9 @@ export async function DocumentsPanel({
   role: UserRole
   projectStatus: string
 }) {
-  const submissions = await listSubmissions(projectId)
+  const viewer: Viewer = { id: viewerId, role }
+  const submissions = await listSubmissions(projectId, viewer)
   const isOwner = role === "student" // caller already verified ownership context
-  void viewerId
   const canSubmit = isOwner && studentCanSubmitDocuments(projectStatus)
   const canReview = role === "admin" || role === "supervisor"
 

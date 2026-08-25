@@ -4,6 +4,8 @@ import { GraduationCap } from "lucide-react"
 import { UserActiveToggle } from "@/components/admin/user-active-toggle"
 import { EmptyState } from "@/components/shared/empty-state"
 import { PageHeader } from "@/components/shared/page-header"
+import { Pagination, paginate } from "@/components/shared/pagination"
+import { SearchInput } from "@/components/shared/search-input"
 import { StatusBadge } from "@/components/shared/status-badge"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent } from "@/components/ui/card"
@@ -13,28 +15,50 @@ import { listStudentDirectory } from "@/services/directory"
 
 export const metadata = { title: "Students" }
 
-export default async function StudentsPage() {
+export default async function StudentsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ q?: string; page?: string }>
+}) {
   const session = await requireUser()
   const role = session.user.role as UserRole
   if (role === "student") redirect("/dashboard")
 
-  const students = await listStudentDirectory()
+  const { q = "", page: pageStr } = await searchParams
+  const pageNum = Math.max(1, parseInt(pageStr ?? "1", 10) || 1)
+  const allStudents = await listStudentDirectory(role === "supervisor" ? session.user.id : undefined)
+
+  const filtered = q
+    ? allStudents.filter(
+        (s) =>
+          s.name.toLowerCase().includes(q.toLowerCase()) ||
+          s.email.toLowerCase().includes(q.toLowerCase()) ||
+          (s.registrationNumber ?? "").toLowerCase().includes(q.toLowerCase())
+      )
+    : allStudents
+
+  const { items: students, page, totalPages } = paginate(filtered, pageNum, 15)
 
   return (
     <div className="mx-auto max-w-5xl">
       <PageHeader
         title="Students"
-        description={`${students.length} active student${students.length === 1 ? "" : "s"} in the system.`}
-      />
+        description={role === "supervisor"
+          ? `${filtered.length} student${filtered.length === 1 ? "" : "s"} assigned to you.`
+          : `${filtered.length} active student${filtered.length === 1 ? "" : "s"} in the system.`}
+      >
+        <SearchInput placeholder="Search by name, email or reg. number…" />
+      </PageHeader>
 
       <div className="mt-6">
-        {students.length === 0 ? (
+        {filtered.length === 0 ? (
           <EmptyState
             icon={GraduationCap}
             title="No students yet"
             description="Student accounts appear here once created."
           />
         ) : (
+          <>
           <Card className="glass py-0 shadow-none">
             <CardContent className="px-0">
               <table className="w-full text-sm">
@@ -94,6 +118,17 @@ export default async function StudentsPage() {
               </table>
             </CardContent>
           </Card>
+          {totalPages > 1 ? (
+            <div className="mt-4">
+              <Pagination
+                page={page}
+                totalPages={totalPages}
+                baseUrl="/students"
+                params={q ? { q } : {}}
+              />
+            </div>
+          ) : null}
+          </>
         )}
       </div>
     </div>

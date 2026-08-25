@@ -7,6 +7,7 @@ import {
 } from "@/components/meetings/meeting-ui"
 import { EmptyState } from "@/components/shared/empty-state"
 import { PageHeader } from "@/components/shared/page-header"
+import { SearchInput } from "@/components/shared/search-input"
 import { Badge } from "@/components/ui/badge"
 import {
   Card,
@@ -46,15 +47,28 @@ function formatRange(startAt: Date, endAt: Date | null) {
     : `${date}, ${time(start)}`
 }
 
-export default async function MeetingsPage() {
+export default async function MeetingsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ q?: string }>
+}) {
   const session = await requireUser()
   const role = session.user.role as UserRole
+  const { q } = await searchParams
+  const query = q?.trim().toLowerCase() ?? ""
 
-  const [meetings, schedulable] = await Promise.all([
+  const [allMeetings, schedulable] = await Promise.all([
     listMeetingsForUser(session.user.id, role),
     listSchedulableProjects(session.user.id, role),
   ])
-  const { upcoming, past } = splitMeetings(meetings)
+  const filterFn = (m: typeof allMeetings[number]) =>
+    !query ||
+    m.title.toLowerCase().includes(query) ||
+    (m.projectTitle ?? "").toLowerCase().includes(query) ||
+    (m.location ?? "").toLowerCase().includes(query)
+  const { upcoming: allUpcoming, past: allPast } = splitMeetings(allMeetings)
+  const upcoming = allUpcoming.filter(filterFn)
+  const past = allPast.filter(filterFn)
 
   return (
     <div className="mx-auto max-w-4xl">
@@ -63,7 +77,8 @@ export default async function MeetingsPage() {
         description="Supervision sessions for your projects — schedule, track and close them out."
       />
 
-      <div className="mt-5 flex justify-end">
+      <div className="mt-5 flex items-center gap-3">
+        <SearchInput placeholder="Search meetings…" className="flex-1" />
         <ScheduleMeetingDialog projects={schedulable} />
       </div>
 

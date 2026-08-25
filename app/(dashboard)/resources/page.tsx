@@ -8,6 +8,7 @@ import {
 } from "@/components/resources/resource-ui"
 import { EmptyState } from "@/components/shared/empty-state"
 import { PageHeader } from "@/components/shared/page-header"
+import { SearchInput } from "@/components/shared/search-input"
 import { Badge } from "@/components/ui/badge"
 import {
   Card,
@@ -30,14 +31,29 @@ const VISIBILITY_VARIANT: Record<string, "secondary" | "outline" | "warning"> = 
   private: "warning",
 }
 
-export default async function ResourcesPage() {
+export default async function ResourcesPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ q?: string }>
+}) {
   const session = await requireUser()
   const role = session.user.role as UserRole
+  const { q } = await searchParams
+  const query = q?.trim().toLowerCase() ?? ""
 
-  const [resources, projects] = await Promise.all([
+  const [allResources, projects] = await Promise.all([
     listVisibleResources(session.user.id, role),
     listAttachableProjects(session.user.id, role),
   ])
+
+  const resources = query
+    ? allResources.filter(
+        (r) =>
+          r.title.toLowerCase().includes(query) ||
+          (r.description ?? "").toLowerCase().includes(query) ||
+          r.category.toLowerCase().includes(query)
+      )
+    : allResources
 
   return (
     <div className="mx-auto max-w-5xl">
@@ -46,7 +62,8 @@ export default async function ResourcesPage() {
         description="Shared guidelines, references and project documents."
       />
 
-      <div className="mt-5 flex justify-end">
+      <div className="mt-5 flex items-center gap-3">
+        <SearchInput placeholder="Search resources…" className="flex-1" />
         <UploadResourceDialog
           categories={RESOURCE_CATEGORIES}
           projects={projects}

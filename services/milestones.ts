@@ -65,7 +65,10 @@ async function recomputeProgress(projectId: string) {
     .where(eq(projects.id, projectId))
 }
 
-export async function listMilestones(projectId: string) {
+export async function listMilestones(projectId: string, viewer?: Viewer) {
+  if (viewer) {
+    await getProjectForViewer(projectId, viewer)
+  }
   return db.query.milestones.findMany({
     where: eq(milestones.projectId, projectId),
     orderBy: [asc(milestones.orderIndex), asc(milestones.createdAt)],

@@ -14,20 +14,25 @@ import {
 import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
 import { formatRelative } from "@/lib/format"
+import type { UserRole } from "@/lib/rbac"
 import { listProjectFeedback } from "@/services/feedback"
+import type { Viewer } from "@/services/milestones"
 
 export async function FeedbackPanel({
   projectId,
   viewerId,
+  viewerRole,
   studentId,
   supervisorId,
 }: {
   projectId: string
   viewerId: string
+  viewerRole: UserRole
   studentId: string
   supervisorId: string | null
 }) {
-  const items = await listProjectFeedback(projectId)
+  const viewer: Viewer = { id: viewerId, role: viewerRole }
+  const items = await listProjectFeedback(projectId, viewer)
 
   // Who can the viewer send feedback to? The counterpart(s) on this project.
   const recipients: Array<{ id: string; name: string; role: string }> = []

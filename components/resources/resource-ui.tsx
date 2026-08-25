@@ -21,9 +21,14 @@ import {
 } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-
-const SELECT_CLASS =
-  "border-input flex h-9 w-full rounded-md border bg-transparent px-3 py-2 text-sm shadow-xs focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] focus-visible:outline-none"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
+import { validateFile } from "@/lib/file-validation"
 
 export function UploadResourceDialog({
   categories,
@@ -38,11 +43,40 @@ export function UploadResourceDialog({
   const [open, setOpen] = useState(false)
   const [uploading, setUploading] = useState(false)
   const [fileName, setFileName] = useState<string | null>(null)
+  const [fileError, setFileError] = useState<string | null>(null)
+  const [selectedCategory, setSelectedCategory] = useState("research")
+  const [selectedVisibility, setSelectedVisibility] = useState("project")
+  const [selectedProject, setSelectedProject] = useState("")
+
+  function handleFileChange(file: File | undefined) {
+    if (!file) {
+      setFileName(null)
+      setFileError(null)
+      return
+    }
+    const error = validateFile(file)
+    setFileError(error)
+    setFileName(error ? null : file.name)
+    if (error) {
+      toast.error(error)
+      if (fileRef.current) fileRef.current.value = ""
+    }
+  }
 
   async function onSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
     const form = event.currentTarget
     const formData = new FormData(form)
+
+    const file = formData.get("file") as File | null
+    if (file && file.size > 0) {
+      const error = validateFile(file)
+      if (error) {
+        toast.error(error)
+        return
+      }
+    }
+
     setUploading(true)
     const result = await createResourceAction(formData)
     setUploading(false)
@@ -90,15 +124,20 @@ export function UploadResourceDialog({
             onDrop={(event) => {
               event.preventDefault()
               if (event.dataTransfer.files.length > 0 && fileRef.current) {
+                const file = event.dataTransfer.files[0]
                 fileRef.current.files = event.dataTransfer.files
-                setFileName(event.dataTransfer.files[0].name)
+                handleFileChange(file)
               }
             }}
             className="border-border hover:border-primary/60 hover:bg-muted/40 flex cursor-pointer flex-col items-center gap-1 rounded-lg border border-dashed px-4 py-6 text-center transition-colors"
           >
             <CloudUpload className="size-5 text-muted-foreground" />
             <p className="text-sm font-medium">
-              {fileName ?? "Click or drop a file here"}
+              {fileError ? (
+                <span className="text-destructive">{fileError}</span>
+              ) : (
+                fileName ?? "Click or drop a file here"
+              )}
             </p>
             <p className="text-xs text-muted-foreground">PDF, Word, slides, zip…</p>
             <input
@@ -108,43 +147,63 @@ export function UploadResourceDialog({
               required
               hidden
               onChange={(event) =>
-                setFileName(event.target.files?.[0]?.name ?? null)
+                handleFileChange(event.target.files?.[0])
               }
             />
           </div>
 
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
-              <Label htmlFor="res-category">Category</Label>
-              <select id="res-category" name="category" defaultValue="research" className={SELECT_CLASS}>
-                {categories.map((category) => (
-                  <option key={category} value={category}>
-                    {category.replace(/_/g, " ")}
-                  </option>
-                ))}
-              </select>
+              <Label>Category</Label>
+              <Select value={selectedCategory} onValueChange={(v) => v && setSelectedCategory(v)}>
+                <SelectTrigger className="w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {categories.map((category) => (
+                    <SelectItem key={category} value={category}>
+                      {category.replace(/_/g, " ")}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <input type="hidden" name="category" value={selectedCategory} />
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor="res-visibility">Visibility</Label>
-              <select id="res-visibility" name="visibility" defaultValue="project" className={SELECT_CLASS}>
-                <option value="private">Private (just me)</option>
-                {projects.length > 0 ? <option value="project">Project members</option> : null}
-                <option value="everyone">Everyone</option>
-              </select>
+              <Label>Visibility</Label>
+              <Select value={selectedVisibility} onValueChange={(v) => v && setSelectedVisibility(v)}>
+                <SelectTrigger className="w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="private">Private (just me)</SelectItem>
+                  {projects.length > 0 ? (
+                    <SelectItem value="project">Project members</SelectItem>
+                  ) : null}
+                  <SelectItem value="everyone">Everyone</SelectItem>
+                </SelectContent>
+              </Select>
+              <input type="hidden" name="visibility" value={selectedVisibility} />
             </div>
           </div>
 
           {projects.length > 0 ? (
             <div className="space-y-1.5">
-              <Label htmlFor="res-project">Project (for project visibility)</Label>
-              <select id="res-project" name="projectId" className={SELECT_CLASS} defaultValue="">
-                <option value="">— none —</option>
-                {projects.map((project) => (
-                  <option key={project.id} value={project.id}>
-                    {project.title}
-                  </option>
-                ))}
-              </select>
+              <Label>Project (for project visibility)</Label>
+              <Select value={selectedProject} onValueChange={(v) => setSelectedProject(v ?? "")}>
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="— none —" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="">— none —</SelectItem>
+                  {projects.map((project) => (
+                    <SelectItem key={project.id} value={project.id}>
+                      {project.title}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <input type="hidden" name="projectId" value={selectedProject} />
             </div>
           ) : null}
 
@@ -155,7 +214,7 @@ export function UploadResourceDialog({
               name="description"
               rows={2}
               maxLength={500}
-              className={`${SELECT_CLASS} h-auto py-2`}
+              className="border-input placeholder:text-muted-foreground flex w-full rounded-md border bg-transparent px-3 py-2 text-sm shadow-xs transition-[color,box-shadow] placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] focus-visible:outline-none h-auto py-2"
             />
           </div>
 

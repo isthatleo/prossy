@@ -22,6 +22,7 @@ import { requireUser } from "@/lib/auth/guards"
 import { formatDateTime } from "@/lib/format"
 import type { UserRole } from "@/lib/rbac"
 import { getMeetingDetail } from "@/services/meetings"
+import { initials } from "@/lib/utils"
 
 export const metadata = { title: "Meeting" }
 
@@ -42,16 +43,6 @@ function formatRange(startAt: Date, endAt: Date | null) {
   const time = (d: Date) =>
     d.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })
   return end ? `${date}, ${time(start)} – ${time(end)}` : `${date}, ${time(start)}`
-}
-
-function initials(name: string) {
-  return name
-    .split(" ")
-    .map((part) => part[0])
-    .filter(Boolean)
-    .slice(0, 2)
-    .join("")
-    .toUpperCase()
 }
 
 export default async function MeetingDetailPage({

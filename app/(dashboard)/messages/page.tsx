@@ -2,6 +2,7 @@
 
 import { Composer, NewChatDialog } from "@/components/messaging/messaging-ui"
 import { EmptyState } from "@/components/shared/empty-state"
+import { SearchInput } from "@/components/shared/search-input"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import {
@@ -14,6 +15,7 @@ import {
 import { requireUser } from "@/lib/auth/guards"
 import { formatRelative } from "@/lib/format"
 import type { UserRole } from "@/lib/rbac"
+import { initials } from "@/lib/utils"
 import {
   listConversations,
   listMessagePartners,
@@ -26,15 +28,24 @@ export const metadata = { title: "Messages" }
 export default async function MessagesPage({
   searchParams,
 }: {
-  searchParams: Promise<{ c?: string }>
+  searchParams: Promise<{ c?: string; q?: string }>
 }) {
-  const [{ c }, session] = await Promise.all([searchParams, requireUser()])
+  const [{ c, q }, session] = await Promise.all([searchParams, requireUser()])
   const role = session.user.role as UserRole
 
   const [partners, conversations] = await Promise.all([
     listMessagePartners(session.user.id, role),
     listConversations(session.user.id),
   ])
+
+  const query = q?.trim().toLowerCase() ?? ""
+  const filtered = query
+    ? conversations.filter(
+        (conv) =>
+          conv.title.toLowerCase().includes(query) ||
+          (conv.lastMessage ?? "").toLowerCase().includes(query)
+      )
+    : conversations
 
   const activeId =
     c && conversations.some((conversation) => conversation.id === c)
@@ -47,16 +58,6 @@ export default async function MessagesPage({
     (conversation) => conversation.id === activeId
   )
 
-  function initials(name: string) {
-    return name
-      .split(" ")
-      .map((part) => part[0])
-      .filter(Boolean)
-      .slice(0, 2)
-      .join("")
-      .toUpperCase()
-  }
-
   return (
     <div className="mx-auto max-w-5xl">
       <div className="grid gap-4 lg:grid-cols-[320px_1fr]">
@@ -64,15 +65,16 @@ export default async function MessagesPage({
         <Card className="glass flex h-fit flex-col shadow-none">
           <CardHeader className="pb-3">
             <CardTitle className="text-sm">Conversations</CardTitle>
+            <SearchInput placeholder="Search conversations…" className="mt-2" />
             <NewChatDialog partners={partners} />
           </CardHeader>
           <CardContent className="space-y-1 pt-0">
-            {conversations.length === 0 ? (
+            {filtered.length === 0 ? (
               <p className="py-8 text-center text-sm text-muted-foreground">
-                No conversations yet — start one.
+                {query ? "No conversations match your search." : "No conversations yet — start one."}
               </p>
             ) : (
-              conversations.map((conversation) => (
+              filtered.map((conversation) => (
                 <a
                   key={conversation.id}
                   href={`/messages?c=${conversation.id}`}

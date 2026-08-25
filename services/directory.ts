@@ -1,4 +1,4 @@
-import { asc, eq, inArray } from "drizzle-orm"
+import { asc, eq, and, inArray } from "drizzle-orm"
 
 import { db } from "@/db"
 import {
@@ -37,7 +37,7 @@ export interface SupervisorDirectoryRow {
 
 const ACTIVE_STATUSES = ["approved", "in_progress", "final_submission"] as const
 
-export async function listStudentDirectory(): Promise<StudentDirectoryRow[]> {
+export async function listStudentDirectory(supervisorId?: string): Promise<StudentDirectoryRow[]> {
   const rows = await db
     .select({
       id: users.id,
@@ -52,7 +52,15 @@ export async function listStudentDirectory(): Promise<StudentDirectoryRow[]> {
     .leftJoin(studentProfiles, eq(studentProfiles.userId, users.id))
     .leftJoin(departments, eq(departments.id, studentProfiles.departmentId))
     // Include deactivated accounts so admins can re-activate them.
-    .where(eq(users.role, "student"))
+    .where(
+      supervisorId
+        ? and(
+            eq(users.role, "student"),
+            eq(projects.supervisorId, supervisorId),
+            inArray(projects.status, [...ACTIVE_STATUSES])
+          )
+        : eq(users.role, "student")
+    )
     .orderBy(asc(users.name))
 
   const activeProjects = await db

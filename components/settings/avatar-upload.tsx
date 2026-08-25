@@ -7,16 +7,7 @@ import { toast } from "sonner"
 
 import { uploadAvatarAction } from "@/app/(dashboard)/settings/actions"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-
-function initials(name: string) {
-  return name
-    .split(" ")
-    .map((part) => part[0])
-    .filter(Boolean)
-    .slice(0, 2)
-    .join("")
-    .toUpperCase()
-}
+import { initials } from "@/lib/utils"
 
 export function AvatarUpload({
   name,

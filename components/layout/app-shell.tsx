@@ -41,7 +41,7 @@ import {
 import { getNavSections } from "@/lib/nav-config"
 import type { UserRole } from "@/lib/rbac"
 import type { NotificationItem } from "@/services/notifications"
-import { cn } from "@/lib/utils"
+import { cn, initials } from "@/lib/utils"
 
 export interface ShellUser {
   id: string
@@ -74,16 +74,6 @@ const sidebarStore = {
     window.localStorage.setItem(SIDEBAR_KEY, next ? "1" : "0")
     for (const listener of sidebarListeners) listener()
   },
-}
-
-function initials(name: string) {
-  return name
-    .split(" ")
-    .map((part) => part[0])
-    .filter(Boolean)
-    .slice(0, 2)
-    .join("")
-    .toUpperCase()
 }
 
 function SidebarNav({

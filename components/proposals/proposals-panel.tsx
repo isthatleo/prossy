@@ -19,6 +19,7 @@ import {
   proposalReviewActions,
   studentCanSubmitProposals,
 } from "@/services/submissions"
+import type { Viewer } from "@/services/milestones"
 
 const PROPOSAL_STATUS_VARIANT: Record<string, "secondary" | "outline" | "warning" | "success" | "destructive"> = {
   submitted: "secondary",
@@ -30,16 +31,19 @@ const PROPOSAL_STATUS_VARIANT: Record<string, "secondary" | "outline" | "warning
 
 export async function ProposalsPanel({
   projectId,
+  viewerId,
   isStudentOwner,
   role,
   projectStatus,
 }: {
   projectId: string
+  viewerId: string
   isStudentOwner: boolean
   role: UserRole
   projectStatus: string
 }) {
-  const proposals = await listProposals(projectId)
+  const viewer: Viewer = { id: viewerId, role }
+  const proposals = await listProposals(projectId, viewer)
   const canSubmit = isStudentOwner && studentCanSubmitProposals(projectStatus)
   const canReview = role === "admin" || role === "supervisor"
 

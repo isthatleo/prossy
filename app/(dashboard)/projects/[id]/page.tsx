@@ -35,7 +35,7 @@ import { Separator } from "@/components/ui/separator"
 import { requireUser } from "@/lib/auth/guards"
 import { formatDate, formatRelative } from "@/lib/format"
 import type { UserRole } from "@/lib/rbac"
-import { cn } from "@/lib/utils"
+import { cn, initials } from "@/lib/utils"
 import {
   allowedActions,
   getProjectActivity,
@@ -68,7 +68,7 @@ export default async function ProjectDetailPage({
   const isStudentOwner =
     role === "student" && project.student.id === session.user.id
   const activity =
-    activeTab === "overview" ? await getProjectActivity(project.id) : []
+    activeTab === "overview" ? await getProjectActivity(project.id, 15, { id: session.user.id, role }) : []
   const actions = allowedActions(
     {
       status: project.status,
@@ -82,16 +82,6 @@ export default async function ProjectDetailPage({
     role === "admin" ||
     (project.student.id === session.user.id &&
       ["draft", "revision_required"].includes(project.status))
-
-  function initials(name: string) {
-    return name
-      .split(" ")
-      .map((part) => part[0])
-      .filter(Boolean)
-      .slice(0, 2)
-      .join("")
-      .toUpperCase()
-  }
 
   return (
     <>
@@ -152,6 +142,7 @@ export default async function ProjectDetailPage({
         {activeTab === "proposal" ? (
           <ProposalsPanel
             projectId={project.id}
+            viewerId={session.user.id}
             isStudentOwner={isStudentOwner}
             role={role}
             projectStatus={project.status}
@@ -174,6 +165,7 @@ export default async function ProjectDetailPage({
           <FeedbackPanel
             projectId={project.id}
             viewerId={session.user.id}
+            viewerRole={role}
             studentId={project.student.id}
             supervisorId={project.supervisor?.id ?? null}
           />

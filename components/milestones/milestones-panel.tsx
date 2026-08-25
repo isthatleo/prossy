@@ -11,6 +11,7 @@ import {
 import { Separator } from "@/components/ui/separator"
 import type { UserRole } from "@/lib/rbac"
 import { listMilestones } from "@/services/milestones"
+import type { Viewer } from "@/services/milestones"
 
 export async function MilestonesPanel({
   projectId,
@@ -23,7 +24,8 @@ export async function MilestonesPanel({
   viewerId: string
   supervisorId: string | null
 }) {
-  const milestones = await listMilestones(projectId)
+  const viewer: Viewer = { id: viewerId, role }
+  const milestones = await listMilestones(projectId, viewer)
   const canManage =
     role === "admin" || (supervisorId !== null && supervisorId === viewerId)
   const completed = milestones.filter((m) => m.status === "completed").length

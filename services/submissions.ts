@@ -83,7 +83,10 @@ async function notify(
 /* Proposals                                                           */
 /* ------------------------------------------------------------------ */
 
-export async function listProposals(projectId: string) {
+export async function listProposals(projectId: string, viewer?: Viewer) {
+  if (viewer) {
+    await getProjectForViewer(projectId, viewer)
+  }
   return db.query.proposals.findMany({
     where: eq(proposals.projectId, projectId),
     with: {
@@ -244,7 +247,10 @@ export async function reviewProposal(
 /* Document submissions                                                */
 /* ------------------------------------------------------------------ */
 
-export async function listSubmissions(projectId: string) {
+export async function listSubmissions(projectId: string, viewer?: Viewer) {
+  if (viewer) {
+    await getProjectForViewer(projectId, viewer)
+  }
   return db.query.documentSubmissions.findMany({
     where: eq(documentSubmissions.projectId, projectId),
     with: {

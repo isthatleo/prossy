@@ -4,6 +4,8 @@ import { Building2, Mail, MapPin, Users } from "lucide-react"
 import { UserActiveToggle } from "@/components/admin/user-active-toggle"
 import { EmptyState } from "@/components/shared/empty-state"
 import { PageHeader } from "@/components/shared/page-header"
+import { Pagination, paginate } from "@/components/shared/pagination"
+import { SearchInput } from "@/components/shared/search-input"
 import { Badge } from "@/components/ui/badge"
 import {
   Card,
@@ -19,26 +21,46 @@ import { listSupervisorDirectory } from "@/services/directory"
 
 export const metadata = { title: "Supervisors" }
 
-export default async function SupervisorsPage() {
+export default async function SupervisorsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ q?: string; page?: string }>
+}) {
   const session = await requireUser()
   const role = session.user.role as UserRole
   if (role !== "admin") redirect("/dashboard")
 
-  const supervisors = await listSupervisorDirectory()
+  const { q = "", page: pageStr } = await searchParams
+  const pageNum = Math.max(1, parseInt(pageStr ?? "1", 10) || 1)
+  const allSupervisors = await listSupervisorDirectory()
+
+  const filtered = q
+    ? allSupervisors.filter(
+        (s) =>
+          s.name.toLowerCase().includes(q.toLowerCase()) ||
+          s.email.toLowerCase().includes(q.toLowerCase()) ||
+          (s.departmentName ?? "").toLowerCase().includes(q.toLowerCase()) ||
+          (s.specialization ?? "").toLowerCase().includes(q.toLowerCase())
+      )
+    : allSupervisors
+
+  const { items: supervisors, page, totalPages } = paginate(filtered, pageNum, 8)
 
   return (
     <div className="mx-auto max-w-5xl">
       <PageHeader
         title="Supervisors"
-        description={`${supervisors.length} supervisor${supervisors.length === 1 ? "" : "s"} and their current supervision load.`}
-      />
+        description={`${filtered.length} supervisor${filtered.length === 1 ? "" : "s"} and their current supervision load.`}
+      >
+        <SearchInput placeholder="Search by name, email, department…" />
+      </PageHeader>
 
       <div className="mt-6 grid gap-4 md:grid-cols-2">
-        {supervisors.length === 0 ? (
+        {filtered.length === 0 ? (
           <EmptyState
             icon={Users}
             title="No supervisors yet"
-            description="Supervisor accounts appear here once created."
+            description={q ? "Try a different search term." : "Supervisor accounts appear here once created."}
           />
         ) : (
           supervisors.map((supervisor) => {
@@ -106,6 +128,16 @@ export default async function SupervisorsPage() {
           })
         )}
       </div>
+      {totalPages > 1 ? (
+        <div className="mt-6">
+          <Pagination
+            page={page}
+            totalPages={totalPages}
+            baseUrl="/supervisors"
+            params={q ? { q } : {}}
+          />
+        </div>
+      ) : null}
     </div>
   )
 }

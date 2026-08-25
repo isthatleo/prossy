@@ -12,6 +12,13 @@ import {
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 
 export function FeedbackComposer({
   projectId,
@@ -22,6 +29,7 @@ export function FeedbackComposer({
 }) {
   const router = useRouter()
   const [content, setContent] = useState("")
+  const [selectedRecipient, setSelectedRecipient] = useState(recipients[0]?.id ?? "")
   const [pending, startTransition] = useTransition()
 
   if (recipients.length === 0) return null
@@ -30,6 +38,7 @@ export function FeedbackComposer({
     event.preventDefault()
     const form = event.currentTarget
     const formData = new FormData(form)
+    formData.set("recipientId", selectedRecipient)
     const result = await addFeedbackAction(projectId, formData)
     if (!result.ok) {
       toast.error(result.error)
@@ -45,19 +54,19 @@ export function FeedbackComposer({
       {recipients.length > 1 ? (
         <div className="space-y-1.5">
           <Label htmlFor="feedback-recipient">To</Label>
-          <select
-            id="feedback-recipient"
-            name="recipientId"
-            required
-            defaultValue={recipients[0].id}
-            className="border-input flex h-9 w-full rounded-md border bg-transparent px-3 py-2 text-sm shadow-xs focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] focus-visible:outline-none"
-          >
-            {recipients.map((person) => (
-              <option key={person.id} value={person.id}>
-                {person.name} ({person.role})
-              </option>
-            ))}
-          </select>
+          <Select value={selectedRecipient} onValueChange={(v) => v && setSelectedRecipient(v)}>
+            <SelectTrigger className="w-full">
+              <SelectValue placeholder="Select recipient" />
+            </SelectTrigger>
+            <SelectContent>
+              {recipients.map((person) => (
+                <SelectItem key={person.id} value={person.id}>
+                  {person.name} ({person.role})
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <input type="hidden" name="recipientId" value={selectedRecipient} />
         </div>
       ) : (
         <Input type="hidden" name="recipientId" value={recipients[0]?.id ?? ""} />

@@ -37,8 +37,12 @@ async function getProjectForMember(projectId: string, viewer: Viewer) {
 }
 
 export async function listProjectFeedback(
-  projectId: string
+  projectId: string,
+  viewer?: Viewer
 ): Promise<FeedbackItem[]> {
+  if (viewer) {
+    await getProjectForMember(projectId, viewer)
+  }
   const rows = await db
     .select({
       id: feedback.id,

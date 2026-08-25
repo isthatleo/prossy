@@ -21,6 +21,13 @@ import {
 } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 
 export function ScheduleMeetingDialog({
   projects,
@@ -31,12 +38,14 @@ export function ScheduleMeetingDialog({
   const formRef = useRef<HTMLFormElement>(null)
   const [open, setOpen] = useState(false)
   const [pending, startTransition] = useTransition()
+  const [selectedProject, setSelectedProject] = useState(projects[0]?.id ?? "")
 
   if (projects.length === 0) return null
 
   async function onSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
     const formData = new FormData(event.currentTarget)
+    formData.set("projectId", selectedProject)
     const result = await scheduleMeetingAction(formData)
     if (!result.ok) {
       toast.error(result.error)
@@ -67,19 +76,19 @@ export function ScheduleMeetingDialog({
         <form ref={formRef} onSubmit={onSubmit} className="space-y-4">
           <div className="space-y-1.5">
             <Label htmlFor="meeting-project">Project *</Label>
-            <select
-              id="meeting-project"
-              name="projectId"
-              required
-              defaultValue={projects[0]?.id}
-              className="border-input flex h-9 w-full rounded-md border bg-transparent px-3 py-2 text-sm shadow-xs focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] focus-visible:outline-none"
-            >
-              {projects.map((project) => (
-                <option key={project.id} value={project.id}>
-                  {project.title}
-                </option>
-              ))}
-            </select>
+            <Select value={selectedProject} onValueChange={(v) => v && setSelectedProject(v)}>
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="Select a project" />
+              </SelectTrigger>
+              <SelectContent>
+                {projects.map((project) => (
+                  <SelectItem key={project.id} value={project.id}>
+                    {project.title}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <input type="hidden" name="projectId" value={selectedProject} />
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="meeting-title">Title *</Label>

@@ -371,8 +371,32 @@ export async function getSupervisorDashboard(userId: string) {
   }
 }
 
+export async function getSupervisorActivity(userId: string, limit = 8) {
+  const rows = await db
+    .select({
+      id: activityLogs.id,
+      summary: activityLogs.summary,
+      createdAt: activityLogs.createdAt,
+      actorName: users.name,
+    })
+    .from(activityLogs)
+    .innerJoin(projects, eq(activityLogs.projectId, projects.id))
+    .leftJoin(users, eq(activityLogs.actorId, users.id))
+    .where(eq(projects.supervisorId, userId))
+    .orderBy(desc(activityLogs.createdAt))
+    .limit(limit)
+
+  return rows.map((r) => ({
+    id: r.id,
+    summary: r.summary,
+    actorName: r.actorName,
+    createdAt: r.createdAt,
+  }))
+}
+
 export async function getAdminDashboard() {
-  const [roleCounts, projectStatuses, deptCount, categoryCount, recentActivity, healthAvg] =
+  const [roleCounts, projectStatuses, deptCount, categoryCount, recentActivity, healthAvg,
+    unreadNotifications, unreadMessagesRow, pendingReviewCount] =
     await Promise.all([
       db.select({ role: users.role, value: count() }).from(users).groupBy(users.role),
       db.select({ status: projects.status, value: count() }).from(projects).groupBy(projects.status),
@@ -390,6 +414,26 @@ export async function getAdminDashboard() {
         .orderBy(desc(activityLogs.createdAt))
         .limit(6),
       db.select({ value: avg(projects.healthScore) }).from(projects),
+      db
+        .select({ value: count() })
+        .from(notifications)
+        .where(and(eq(notifications.userId, sql`current_setting('app.current_user_id')::uuid`), isNull(notifications.readAt))),
+      db
+        .select({ value: count() })
+        .from(conversationMembers)
+        .innerJoin(messages, eq(messages.conversationId, conversationMembers.conversationId))
+        .where(
+          and(
+            eq(conversationMembers.userId, sql`current_setting('app.current_user_id')::uuid`),
+            ne(messages.senderId, sql`current_setting('app.current_user_id')::uuid`),
+            or(isNull(conversationMembers.lastReadAt), gt(messages.createdAt, conversationMembers.lastReadAt))
+          )
+        ),
+      sql<number>`(
+        (select count(*)::int from proposals where status in ('submitted', 'under_review'))
+        +
+        (select count(*)::int from ${documentSubmissions} where status in ('submitted', 'under_review'))
+      )`,
     ])
 
   return {
@@ -401,5 +445,8 @@ export async function getAdminDashboard() {
     categories: categoryCount[0]?.value ?? 0,
     avgHealth: Math.round(Number(healthAvg[0]?.value ?? 100)),
     recentActivity: recentActivity satisfies ActivityItem[],
+    unreadNotifications: unreadNotifications[0]?.value ?? 0,
+    unreadMessages: unreadMessagesRow[0]?.value ?? 0,
+    pendingReviewCount: Number(pendingReviewCount ?? 0),
   }
 }
