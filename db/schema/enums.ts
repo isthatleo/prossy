@@ -78,6 +78,7 @@ export const notificationTypeEnum = pgEnum("notification_type", [
   "document_reviewed",
   "feedback_added",
   "meeting_scheduled",
+  "meeting_cancelled",
   "deadline_approaching",
   "milestone_overdue",
   "project_status_changed",

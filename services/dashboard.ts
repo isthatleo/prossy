@@ -81,22 +81,21 @@ export interface LatestSubmissionInfo {
 }
 
 export async function getStudentDashboard(userId: string) {
-  const [project] = await db.query.projects.findMany({
-    where: and(
-      eq(projects.studentId, userId),
-      notInArray(projects.status, ["rejected", "completed"])
-    ),
-    with: {
-      supervisor: true,
-      category: true,
-      milestones: true,
-    },
-    orderBy: [desc(projects.createdAt)],
-    limit: 1,
-  })
-
-  const [unreadNotifications, unresolvedFeedback, unreadMessagesRow, latestProposal, latestDocument] =
+  const [project, unreadNotifications, unresolvedFeedback, unreadMessagesRow] =
     await Promise.all([
+      db.query.projects.findMany({
+        where: and(
+          eq(projects.studentId, userId),
+          notInArray(projects.status, ["rejected", "completed"])
+        ),
+        with: {
+          supervisor: { columns: { name: true } },
+          category: { columns: { name: true } },
+          milestones: true,
+        },
+        orderBy: [desc(projects.createdAt)],
+        limit: 1,
+      }).then((rows) => rows[0] ?? null),
       db
         .select({ value: count() })
         .from(notifications)
@@ -122,6 +121,10 @@ export async function getStudentDashboard(userId: string) {
             )
           )
         ),
+    ])
+
+  const [latestProposal, latestDocument, upcomingMeetings] =
+    await Promise.all([
       project
         ? db
             .select({
@@ -148,30 +151,29 @@ export async function getStudentDashboard(userId: string) {
             .orderBy(desc(documentSubmissions.submittedAt))
             .limit(1)
         : Promise.resolve([]),
+      project
+        ? db
+            .select({
+              id: meetings.id,
+              title: meetings.title,
+              startAt: meetings.startAt,
+              location: meetings.location,
+              projectTitle: projects.title,
+            })
+            .from(meetingParticipants)
+            .innerJoin(meetings, eq(meetingParticipants.meetingId, meetings.id))
+            .innerJoin(projects, eq(meetings.projectId, projects.id))
+            .where(
+              and(
+                eq(meetingParticipants.userId, userId),
+                eq(meetings.status, "scheduled"),
+                gte(meetings.startAt, new Date())
+              )
+            )
+            .orderBy(asc(meetings.startAt))
+            .limit(3)
+        : Promise.resolve([]),
     ])
-
-  const upcomingMeetings = project
-    ? await db
-        .select({
-          id: meetings.id,
-          title: meetings.title,
-          startAt: meetings.startAt,
-          location: meetings.location,
-          projectTitle: projects.title,
-        })
-        .from(meetingParticipants)
-        .innerJoin(meetings, eq(meetingParticipants.meetingId, meetings.id))
-        .innerJoin(projects, eq(meetings.projectId, projects.id))
-        .where(
-          and(
-            eq(meetingParticipants.userId, userId),
-            eq(meetings.status, "scheduled"),
-            gte(meetings.startAt, new Date())
-          )
-        )
-        .orderBy(asc(meetings.startAt))
-        .limit(3)
-    : []
 
   return {
     project: project
@@ -311,45 +313,46 @@ export async function getSupervisorDashboard(userId: string) {
         ),
     ])
 
-  const proposalReviews = await db
-    .select({
-      id: proposals.id,
-      kind: sql<"proposal">`'proposal'`,
-      label: sql<string>`concat('Proposal v', ${proposals.version})`,
-      projectId: projects.id,
-      projectTitle: projects.title,
-      studentName: users.name,
-      submittedAt: proposals.submittedAt,
-    })
-    .from(proposals)
-    .innerJoin(projects, eq(proposals.projectId, projects.id))
-    .innerJoin(users, eq(proposals.submittedBy, users.id))
-    .where(
-      and(
-        eq(projects.supervisorId, userId),
-        inArray(proposals.status, ["submitted", "under_review"])
-      )
-    )
-
-  const documentReviews = await db
-    .select({
-      id: documentSubmissions.id,
-      kind: sql<"document">`'document'`,
-      label: documentSubmissions.type,
-      projectId: projects.id,
-      projectTitle: projects.title,
-      studentName: users.name,
-      submittedAt: documentSubmissions.submittedAt,
-    })
-    .from(documentSubmissions)
-    .innerJoin(projects, eq(documentSubmissions.projectId, projects.id))
-    .innerJoin(users, eq(documentSubmissions.submittedBy, users.id))
-    .where(
-      and(
-        eq(projects.supervisorId, userId),
-        inArray(documentSubmissions.status, ["submitted", "under_review"])
-      )
-    )
+  const [proposalReviews, documentReviews] = await Promise.all([
+    db
+      .select({
+        id: proposals.id,
+        kind: sql<"proposal">`'proposal'`,
+        label: sql<string>`concat('Proposal v', ${proposals.version})`,
+        projectId: projects.id,
+        projectTitle: projects.title,
+        studentName: users.name,
+        submittedAt: proposals.submittedAt,
+      })
+      .from(proposals)
+      .innerJoin(projects, eq(proposals.projectId, projects.id))
+      .innerJoin(users, eq(proposals.submittedBy, users.id))
+      .where(
+        and(
+          eq(projects.supervisorId, userId),
+          inArray(proposals.status, ["submitted", "under_review"])
+        )
+      ),
+    db
+      .select({
+        id: documentSubmissions.id,
+        kind: sql<"document">`'document'`,
+        label: documentSubmissions.type,
+        projectId: projects.id,
+        projectTitle: projects.title,
+        studentName: users.name,
+        submittedAt: documentSubmissions.submittedAt,
+      })
+      .from(documentSubmissions)
+      .innerJoin(projects, eq(documentSubmissions.projectId, projects.id))
+      .innerJoin(users, eq(documentSubmissions.submittedBy, users.id))
+      .where(
+        and(
+          eq(projects.supervisorId, userId),
+          inArray(documentSubmissions.status, ["submitted", "under_review"])
+        )
+      ),
+  ])
 
   const pendingReviews: PendingReviewItem[] = [
     ...proposalReviews,
@@ -394,7 +397,7 @@ export async function getSupervisorActivity(userId: string, limit = 8) {
   }))
 }
 
-export async function getAdminDashboard() {
+export async function getAdminDashboard(userId: string) {
   const [roleCounts, projectStatuses, deptCount, categoryCount, recentActivity, healthAvg,
     unreadNotifications, unreadMessagesRow, pendingReviewCount] =
     await Promise.all([
@@ -417,15 +420,15 @@ export async function getAdminDashboard() {
       db
         .select({ value: count() })
         .from(notifications)
-        .where(and(eq(notifications.userId, sql`current_setting('app.current_user_id')::uuid`), isNull(notifications.readAt))),
+        .where(and(eq(notifications.userId, userId), isNull(notifications.readAt))),
       db
         .select({ value: count() })
         .from(conversationMembers)
         .innerJoin(messages, eq(messages.conversationId, conversationMembers.conversationId))
         .where(
           and(
-            eq(conversationMembers.userId, sql`current_setting('app.current_user_id')::uuid`),
-            ne(messages.senderId, sql`current_setting('app.current_user_id')::uuid`),
+            eq(conversationMembers.userId, userId),
+            ne(messages.senderId, userId),
             or(isNull(conversationMembers.lastReadAt), gt(messages.createdAt, conversationMembers.lastReadAt))
           )
         ),

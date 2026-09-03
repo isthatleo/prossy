@@ -792,8 +792,8 @@ async function SupervisorDashboard({ userId, name }: { userId: string; name: str
 
 /* -------------------------------- Admin -------------------------------- */
 
-async function AdminDashboard({ name }: { name: string }) {
-  const data = await getAdminDashboard()
+async function AdminDashboard({ userId, name }: { userId: string; name: string }) {
+  const data = await getAdminDashboard(userId)
 
   return (
     <>
@@ -957,7 +957,7 @@ export default async function DashboardPage() {
   const session = await requireUser()
   const role = session.user.role as UserRole
 
-  if (role === "admin") return <AdminDashboard name={session.user.name} />
+  if (role === "admin") return <AdminDashboard userId={session.user.id} name={session.user.name} />
   if (role === "supervisor")
     return <SupervisorDashboard userId={session.user.id} name={session.user.name} />
   return <StudentDashboard userId={session.user.id} name={session.user.name} />

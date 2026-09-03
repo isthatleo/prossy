@@ -106,6 +106,7 @@ export const meetings = pgTable(
   (table) => [
     index("meetings_project_idx").on(table.projectId),
     index("meetings_start_at_idx").on(table.startAt),
+    index("meetings_status_start_idx").on(table.status, table.startAt),
   ]
 )
 
@@ -125,5 +126,6 @@ export const meetingParticipants = pgTable(
       table.meetingId,
       table.userId
     ),
+    index("meeting_participants_user_idx").on(table.userId),
   ]
 )

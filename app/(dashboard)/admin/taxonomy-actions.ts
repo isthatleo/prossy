@@ -10,6 +10,7 @@ import {
   deleteCategory,
   deleteDepartment,
   setUserActive,
+  setUserRole,
 } from "@/services/admin"
 import {
   createCategorySchema,
@@ -99,6 +100,24 @@ export async function setUserActiveAction(
   } catch (error) {
     return { ok: false, error: error instanceof Error ? error.message : "Failed." }
   }
+  revalidatePath("/students")
+  revalidatePath("/supervisors")
+  revalidatePath("/admin/users")
+  return { ok: true }
+}
+
+export async function setUserRoleAction(
+  userId: string,
+  newRole: UserRole
+): Promise<ActionResult> {
+  const session = await requireUser()
+  try {
+    await setUserRole(viewer(session), userId, newRole)
+  } catch (error) {
+    return { ok: false, error: error instanceof Error ? error.message : "Failed." }
+  }
+  revalidatePath("/admin/users")
+  revalidatePath(`/admin/users/${userId}`)
   revalidatePath("/students")
   revalidatePath("/supervisors")
   return { ok: true }

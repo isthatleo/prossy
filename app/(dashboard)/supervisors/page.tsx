@@ -1,6 +1,7 @@
 ﻿import { redirect } from "next/navigation"
 import { Building2, Mail, MapPin, Users } from "lucide-react"
 
+import { AddSupervisorDialog } from "@/components/admin/add-supervisor-dialog"
 import { UserActiveToggle } from "@/components/admin/user-active-toggle"
 import { EmptyState } from "@/components/shared/empty-state"
 import { PageHeader } from "@/components/shared/page-header"

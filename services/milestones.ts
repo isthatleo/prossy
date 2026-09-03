@@ -212,14 +212,16 @@ export async function setMilestoneStatus(
     const recipients = [project.studentId, project.supervisorId].filter(
       (id): id is string => id !== null && id !== viewer.id
     )
-    for (const userId of recipients) {
-      await db.insert(notifications).values({
-        userId,
-        type: "system",
-        title: "Milestone completed",
-        body: `"${milestone.title}" is done.`,
-        link: `/projects/${projectId}?tab=milestones`,
-      })
+    if (recipients.length > 0) {
+      await db.insert(notifications).values(
+        recipients.map((userId) => ({
+          userId,
+          type: "system" as const,
+          title: "Milestone completed",
+          body: `"${milestone.title}" is done.`,
+          link: `/projects/${projectId}?tab=milestones`,
+        }))
+      )
     }
   }
 }

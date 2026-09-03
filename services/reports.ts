@@ -1,9 +1,13 @@
-import { and, count, desc, eq, isNull, lt, ne, sql } from "drizzle-orm"
+import { and, asc, count, desc, eq, isNull, lt, ne, sql } from "drizzle-orm"
 
 import { db } from "@/db"
 import {
+  departments,
   milestones,
+  projectCategories,
   projects,
+  studentProfiles,
+  supervisorProfiles,
   users,
 } from "@/db/schema"
 import type { UserRole } from "@/lib/rbac"
@@ -28,31 +32,32 @@ export async function getReportStats(
 ): Promise<ReportStats> {
   const scope = scopeFor(viewerId, role)
 
-  const [totals] = await db
-    .select({
-      totalProjects: count(),
-      activeProjects: sql<number>`count(*) filter (
-        where ${projects.status} in ('approved','in_progress','final_submission')
-      )::int`,
-      completedProjects: sql<number>`count(*) filter (where ${projects.status} = 'completed')::int`,
-      avgProgress: sql<number>`coalesce(round(avg(${projects.progressPercent})), 0)::int`,
-      avgHealth: sql<number>`coalesce(round(avg(${projects.healthScore})), 0)::int`,
-    })
-    .from(projects)
-    .where(scope)
-
-  const [overdue] = await db
-    .select({ total: count() })
-    .from(milestones)
-    .innerJoin(projects, eq(projects.id, milestones.projectId))
-    .where(
-      and(
-        scope,
-        ne(milestones.status, "completed"),
-        lt(milestones.dueDate, new Date()),
-        isNull(milestones.completedAt)
-      )
-    )
+  const [[totals], [overdue]] = await Promise.all([
+    db
+      .select({
+        totalProjects: count(),
+        activeProjects: sql<number>`count(*) filter (
+          where ${projects.status} in ('approved','in_progress','final_submission')
+        )::int`,
+        completedProjects: sql<number>`count(*) filter (where ${projects.status} = 'completed')::int`,
+        avgProgress: sql<number>`coalesce(round(avg(${projects.progressPercent})), 0)::int`,
+        avgHealth: sql<number>`coalesce(round(avg(${projects.healthScore})), 0)::int`,
+      })
+      .from(projects)
+      .where(scope),
+    db
+      .select({ total: count() })
+      .from(milestones)
+      .innerJoin(projects, eq(projects.id, milestones.projectId))
+      .where(
+        and(
+          scope,
+          ne(milestones.status, "completed"),
+          lt(milestones.dueDate, new Date()),
+          isNull(milestones.completedAt)
+        )
+      ),
+  ])
 
   return {
     totalProjects: totals?.totalProjects ?? 0,
@@ -122,4 +127,137 @@ export async function getRecentCompletions(
     .where(and(scope, eq(projects.status, "completed")))
     .orderBy(desc(projects.completedAt))
     .limit(limit)
+}
+
+/* ---------------- Drill-down reports ---------------- */
+
+export interface EntityReportStats {
+  totalProjects: number
+  activeProjects: number
+  completedProjects: number
+  avgProgress: number
+  studentCount: number
+  supervisorCount: number
+}
+
+export async function getDepartmentReport(departmentId: string): Promise<EntityReportStats> {
+  const [[stats], studentCount, supervisorCount] = await Promise.all([
+    db
+      .select({
+        totalProjects: count(),
+        activeProjects: sql<number>`count(*) filter (
+          where ${projects.status} in ('approved','in_progress','final_submission')
+        )::int`,
+        completedProjects: sql<number>`count(*) filter (where ${projects.status} = 'completed')::int`,
+        avgProgress: sql<number>`coalesce(round(avg(${projects.progressPercent})), 0)::int`,
+      })
+      .from(projects)
+      .where(eq(projects.departmentId, departmentId)),
+    db
+      .select({ total: count() })
+      .from(studentProfiles)
+      .where(eq(studentProfiles.departmentId, departmentId)),
+    db
+      .select({ total: count() })
+      .from(supervisorProfiles)
+      .where(eq(supervisorProfiles.departmentId, departmentId)),
+  ])
+
+  return {
+    totalProjects: stats?.totalProjects ?? 0,
+    activeProjects: stats?.activeProjects ?? 0,
+    completedProjects: stats?.completedProjects ?? 0,
+    avgProgress: stats?.avgProgress ?? 0,
+    studentCount: studentCount?.total ?? 0,
+    supervisorCount: supervisorCount?.total ?? 0,
+  }
+}
+
+export async function getCategoryReport(categoryId: string): Promise<Omit<EntityReportStats, "studentCount" | "supervisorCount">> {
+  const [stats] = await db
+    .select({
+      totalProjects: count(),
+      activeProjects: sql<number>`count(*) filter (
+        where ${projects.status} in ('approved','in_progress','final_submission')
+      )::int`,
+      completedProjects: sql<number>`count(*) filter (where ${projects.status} = 'completed')::int`,
+      avgProgress: sql<number>`coalesce(round(avg(${projects.progressPercent})), 0)::int`,
+    })
+    .from(projects)
+    .where(eq(projects.categoryId, categoryId))
+
+  return {
+    totalProjects: stats?.totalProjects ?? 0,
+    activeProjects: stats?.activeProjects ?? 0,
+    completedProjects: stats?.completedProjects ?? 0,
+    avgProgress: stats?.avgProgress ?? 0,
+  }
+}
+
+export async function getStatusBreakdownForEntity(
+  filterColumn: "departmentId" | "categoryId",
+  entityId: string
+): Promise<Array<{ status: string; total: number }>> {
+  return db
+    .select({
+      status: projects.status,
+      total: sql<number>`count(*)::int`,
+    })
+    .from(projects)
+    .where(eq(projects[filterColumn], entityId))
+    .groupBy(projects.status)
+    .orderBy(desc(sql`count(*)`))
+}
+
+export async function getProjectsOverTime(
+  filterColumn?: "departmentId" | "categoryId",
+  entityId?: string
+): Promise<Array<{ month: string; total: number }>> {
+  const where = filterColumn && entityId
+    ? eq(projects[filterColumn], entityId)
+    : undefined
+
+  const rows = await db
+    .select({
+      month: sql<string>`to_char(${projects.createdAt}, 'YYYY-MM')`,
+      total: sql<number>`count(*)::int`,
+    })
+    .from(projects)
+    .where(where)
+    .groupBy(sql`to_char(${projects.createdAt}, 'YYYY-MM')`)
+    .orderBy(asc(sql`to_char(${projects.createdAt}, 'YYYY-MM')`))
+
+  return rows
+}
+
+export async function getEntityProjects(
+  filterColumn: "departmentId" | "categoryId",
+  entityId: string
+) {
+  return db.query.projects.findMany({
+    where: eq(projects[filterColumn], entityId),
+    with: {
+      student: { columns: { name: true } },
+      supervisor: { columns: { name: true } },
+    },
+    orderBy: [asc(projects.createdAt)],
+  })
+}
+
+export async function getEntityName(
+  filterColumn: "departmentId" | "categoryId",
+  entityId: string
+): Promise<string | null> {
+  if (filterColumn === "departmentId") {
+    const row = await db.query.departments.findFirst({
+      where: eq(departments.id, entityId),
+      columns: { name: true, code: true },
+    })
+    return row ? `${row.name} (${row.code})` : null
+  }
+  const row = await db.query.projectCategories.findFirst({
+    where: eq(projectCategories.id, entityId),
+    columns: { name: true },
+  })
+  return row?.name ?? null
 }

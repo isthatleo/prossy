@@ -1,4 +1,4 @@
-import { asc, eq, sql } from "drizzle-orm"
+import { asc, count, eq, sql } from "drizzle-orm"
 
 import { db } from "@/db"
 import {
@@ -162,5 +162,74 @@ export async function setUserActive(
     actorId: viewer.id,
     type: isActive ? "user_activated" : "user_deactivated",
     summary: `${target.name} was ${isActive ? "re-activated" : "deactivated"}.`,
+  })
+}
+
+/* ---------------- User directory ---------------- */
+
+export interface UserDirectoryRow {
+  id: string
+  name: string
+  email: string
+  role: UserRole
+  isActive: boolean
+  departmentName: string | null
+  projectCount: number
+  createdAt: Date
+}
+
+export async function listAllUsers(): Promise<UserDirectoryRow[]> {
+  const rows = await db
+    .select({
+      id: users.id,
+      name: users.name,
+      email: users.email,
+      role: users.role,
+      isActive: users.is_active,
+      departmentName: sql<string | null>`
+        coalesce(
+          (select d.name from ${studentProfiles} sp
+            join ${departments} d on d.id = sp.department_id
+            where sp.user_id = ${users.id}),
+          (select d.name from ${supervisorProfiles} sup
+            join ${departments} d on d.id = sup.department_id
+            where sup.user_id = ${users.id})
+        )
+      `,
+      projectCount: sql<number>`(
+        select count(*)::int from ${projects} p
+        where p.student_id = ${users.id} or p.supervisor_id = ${users.id}
+      )`,
+      createdAt: users.createdAt,
+    })
+    .from(users)
+    .orderBy(asc(users.name))
+  return rows
+}
+
+export async function setUserRole(
+  viewer: { id: string; role: UserRole },
+  userId: string,
+  newRole: UserRole
+): Promise<void> {
+  if (viewer.role !== "admin") throw new Error("Only admins can change roles.")
+  if (userId === viewer.id) {
+    throw new Error("You cannot change your own role.")
+  }
+
+  const target = await db.query.users.findFirst({
+    where: eq(users.id, userId),
+    columns: { id: true, name: true, role: true },
+  })
+  if (!target) throw new Error("User not found.")
+  if (target.role === newRole) return
+
+  await db.update(users).set({ role: newRole }).where(eq(users.id, userId))
+
+  await logActivity({
+    projectId: null,
+    actorId: viewer.id,
+    type: "user_role_changed",
+    summary: `${target.name} role changed from ${target.role} to ${newRole}.`,
   })
 }

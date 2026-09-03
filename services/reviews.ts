@@ -1,4 +1,4 @@
-import { and, desc, eq, inArray } from "drizzle-orm"
+import { and, count, desc, eq, inArray } from "drizzle-orm"
 
 import { db } from "@/db"
 import {
@@ -47,47 +47,48 @@ export async function listReviewQueue(
       ? undefined
       : eq(projects.supervisorId, viewerId)
 
-  const proposalRows = await db
-    .select({
-      id: proposals.id,
-      projectId: proposals.projectId,
-      projectTitle: projects.title,
-      studentName: users.name,
-      version: proposals.version,
-      status: proposals.status,
-      submittedAt: proposals.submittedAt,
-    })
-    .from(proposals)
-    .innerJoin(projects, eq(projects.id, proposals.projectId))
-    .innerJoin(users, eq(users.id, projects.studentId))
-    .where(
-      scope
-        ? and(scope, inArray(proposals.status, [...PROPOSAL_PENDING]))
-        : inArray(proposals.status, [...PROPOSAL_PENDING])
-    )
-    .orderBy(desc(proposals.submittedAt))
-    .limit(50)
-
-  const documentRows = await db
-    .select({
-      id: documentSubmissions.id,
-      projectId: documentSubmissions.projectId,
-      projectTitle: projects.title,
-      studentName: users.name,
-      type: documentSubmissions.type,
-      status: documentSubmissions.status,
-      submittedAt: documentSubmissions.submittedAt,
-    })
-    .from(documentSubmissions)
-    .innerJoin(projects, eq(projects.id, documentSubmissions.projectId))
-    .innerJoin(users, eq(users.id, projects.studentId))
-    .where(
-      scope
-        ? and(scope, eq(documentSubmissions.status, "submitted"))
-        : eq(documentSubmissions.status, "submitted")
-    )
-    .orderBy(desc(documentSubmissions.submittedAt))
-    .limit(50)
+  const [proposalRows, documentRows] = await Promise.all([
+    db
+      .select({
+        id: proposals.id,
+        projectId: proposals.projectId,
+        projectTitle: projects.title,
+        studentName: users.name,
+        version: proposals.version,
+        status: proposals.status,
+        submittedAt: proposals.submittedAt,
+      })
+      .from(proposals)
+      .innerJoin(projects, eq(projects.id, proposals.projectId))
+      .innerJoin(users, eq(users.id, projects.studentId))
+      .where(
+        scope
+          ? and(scope, inArray(proposals.status, [...PROPOSAL_PENDING]))
+          : inArray(proposals.status, [...PROPOSAL_PENDING])
+      )
+      .orderBy(desc(proposals.submittedAt))
+      .limit(50),
+    db
+      .select({
+        id: documentSubmissions.id,
+        projectId: documentSubmissions.projectId,
+        projectTitle: projects.title,
+        studentName: users.name,
+        type: documentSubmissions.type,
+        status: documentSubmissions.status,
+        submittedAt: documentSubmissions.submittedAt,
+      })
+      .from(documentSubmissions)
+      .innerJoin(projects, eq(projects.id, documentSubmissions.projectId))
+      .innerJoin(users, eq(users.id, projects.studentId))
+      .where(
+        scope
+          ? and(scope, eq(documentSubmissions.status, "submitted"))
+          : eq(documentSubmissions.status, "submitted")
+      )
+      .orderBy(desc(documentSubmissions.submittedAt))
+      .limit(50),
+  ])
 
   return {
     proposals: proposalRows.map((row) => ({ ...row, kind: "proposal" as const })),
@@ -100,9 +101,31 @@ export async function reviewQueueCounts(
   viewerId: string,
   role: UserRole
 ): Promise<{ proposals: number; documents: number }> {
-  const queue = await listReviewQueue(viewerId, role)
+  const scope = role === "admin" ? undefined : eq(projects.supervisorId, viewerId)
+
+  const [proposalCount, documentCount] = await Promise.all([
+    db
+      .select({ value: count() })
+      .from(proposals)
+      .innerJoin(projects, eq(projects.id, proposals.projectId))
+      .where(
+        scope
+          ? and(scope, inArray(proposals.status, [...PROPOSAL_PENDING]))
+          : inArray(proposals.status, [...PROPOSAL_PENDING])
+      ),
+    db
+      .select({ value: count() })
+      .from(documentSubmissions)
+      .innerJoin(projects, eq(projects.id, documentSubmissions.projectId))
+      .where(
+        scope
+          ? and(scope, eq(documentSubmissions.status, "submitted"))
+          : eq(documentSubmissions.status, "submitted")
+      ),
+  ])
+
   return {
-    proposals: queue.proposals.length,
-    documents: queue.documents.length,
+    proposals: proposalCount[0]?.value ?? 0,
+    documents: documentCount[0]?.value ?? 0,
   }
 }

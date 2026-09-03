@@ -84,6 +84,12 @@ const ADMIN_SECTIONS: NavSection[] = [
     ],
   },
   {
+    label: "Management",
+    items: [
+      { title: "Users", href: "/admin/users", icon: Users },
+    ],
+  },
+  {
     label: "Academics",
     items: [
       { title: "Projects", href: "/projects", icon: FolderKanban },

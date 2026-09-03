@@ -208,7 +208,10 @@ export async function performProjectAction(
 ) {
   const project = await db.query.projects.findFirst({
     where: eq(projects.id, projectId),
-    with: { student: true, supervisor: true },
+    with: {
+      student: { columns: { name: true } },
+      supervisor: { columns: { name: true } },
+    },
   })
   if (!project) throw new Error("Project not found.")
   if (!canPerform(viewer.role, action)) {

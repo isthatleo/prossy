@@ -124,6 +124,7 @@ export const projects = pgTable(
     index("projects_supervisor_idx").on(table.supervisorId),
     index("projects_category_idx").on(table.categoryId),
     index("projects_created_at_idx").on(table.createdAt),
+    index("projects_updated_at_idx").on(table.updatedAt),
     index("projects_title_idx").on(table.title),
     // One active (non-rejected/completed) project per student at a time
     uniqueIndex("projects_active_per_student_idx")

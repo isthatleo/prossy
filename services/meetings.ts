@@ -145,14 +145,16 @@ export async function scheduleMeeting(
   })
 
   const others = participantIds.filter((id) => id !== viewer.id)
-  for (const userId of others) {
-    await db.insert(notifications).values({
-      userId,
-      type: "meeting_scheduled",
-      title: "Meeting scheduled",
-      body: `"${input.title}" on ${startAt.toLocaleString("en-GB")} — set up by ${viewer.name ?? "a member"}.`,
-      link: `/meetings/${meeting.id}`,
-    })
+  if (others.length > 0) {
+    await db.insert(notifications).values(
+      others.map((userId) => ({
+        userId,
+        type: "meeting_scheduled" as const,
+        title: "Meeting scheduled",
+        body: `"${input.title}" on ${startAt.toLocaleString("en-GB")} — set up by ${viewer.name ?? "a member"}.`,
+        link: `/meetings/${meeting.id}`,
+      }))
+    )
   }
 
   return { meetingId: meeting.id }
@@ -299,14 +301,17 @@ export async function cancelMeeting(
     .select({ userId: meetingParticipants.userId })
     .from(meetingParticipants)
     .where(eq(meetingParticipants.meetingId, meetingId))
-  for (const p of participants.filter((p) => p.userId !== viewer.id)) {
-    await db.insert(notifications).values({
-      userId: p.userId,
-      type: "meeting_scheduled",
-      title: "Meeting cancelled",
-      body: `"${meeting.title}" was cancelled${reason?.trim() ? ` — ${reason.trim()}` : "."}`,
-      link: `/meetings/${meeting.id}`,
-    })
+  const cancelRecipients = participants.filter(p => p.userId !== viewer.id).map(p => p.userId)
+  if (cancelRecipients.length > 0) {
+    await db.insert(notifications).values(
+      cancelRecipients.map((userId) => ({
+        userId,
+        type: "meeting_cancelled" as const,
+        title: "Meeting cancelled",
+        body: `"${meeting.title}" has been cancelled.`,
+        link: `/meetings`,
+      }))
+    )
   }
 }
 
