@@ -141,7 +141,7 @@ export interface EntityReportStats {
 }
 
 export async function getDepartmentReport(departmentId: string): Promise<EntityReportStats> {
-  const [[stats], studentCount, supervisorCount] = await Promise.all([
+  const [[stats], [studentCount], [supervisorCount]] = await Promise.all([
     db
       .select({
         totalProjects: count(),
